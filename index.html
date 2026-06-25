@@ -360,7 +360,7 @@
             -webkit-overflow-scrolling: touch;
         }
         .message {
-            max-width: 82%;
+            max-width: 85%;
             padding: 10px 14px;
             border-radius: 20px;
             background: #e8f0f8;
@@ -393,16 +393,51 @@
         .message.mine .msg-meta {
             opacity: 0.8;
         }
-        .message img, .message video {
+        .message .sender-name {
+            font-weight: 600;
+            font-size: 13px;
+            margin-bottom: 2px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .message .sender-name .badge-item {
+            font-size: 9px;
+            padding: 0 6px 0 4px;
+        }
+        .message img {
             max-width: 100%;
-            max-height: 250px;
+            max-height: 300px;
             border-radius: 12px;
             margin-top: 4px;
+            cursor: pointer;
+        }
+        .message video {
+            max-width: 100%;
+            max-height: 300px;
+            border-radius: 12px;
+            margin-top: 4px;
+            background: #000;
         }
         .message audio {
             width: 100%;
-            max-width: 220px;
+            max-width: 280px;
+            min-width: 200px;
+            height: 40px;
             margin-top: 4px;
+            border-radius: 20px;
+            background: #f0f0f0;
+        }
+        body.dark .message audio {
+            background: #2a3a4a;
+        }
+        .message.mine audio {
+            background: rgba(255,255,255,0.2);
+        }
+        .message .audio-label {
+            font-size: 11px;
+            opacity: 0.6;
+            margin-top: 2px;
         }
         .message .msg-actions {
             display: flex;
@@ -418,6 +453,7 @@
             font-size: 11px;
             cursor: pointer;
             color: inherit;
+            transition: 0.2s;
         }
         body.dark .message .msg-actions button {
             background: rgba(255,255,255,0.08);
@@ -451,12 +487,14 @@
         .input-row .btn {
             width: auto;
             padding: 10px 16px;
+            font-size: 16px;
         }
         .recording-indicator {
             font-size: 12px;
             color: #ff3b30;
             padding: 4px 0;
             text-align: center;
+            min-height: 24px;
         }
         
         .settings-group {
@@ -488,6 +526,9 @@
         }
         body.dark .settings-group .info-row .label {
             color: #8a9aaa;
+        }
+        .settings-group .btn {
+            width: auto;
         }
         
         .search-msg-input {
@@ -521,6 +562,8 @@
             width: 100%;
             max-width: 430px;
             animation: slideUp 0.3s;
+            max-height: 80%;
+            overflow-y: auto;
         }
         body.dark .poll-card {
             background: #1a2332;
@@ -696,7 +739,7 @@
             <div>
                 <label>Отображаемое имя</label>
                 <input id="displayNameInput" placeholder="Ваше имя" />
-                <button class="btn btn-sm" id="updateDisplayNameBtn" style="margin-top:8px; width:auto;">Обновить</button>
+                <button class="btn btn-sm" id="updateDisplayNameBtn" style="margin-top:8px;">Обновить</button>
             </div>
             <div>
                 <label>Тема оформления</label>
@@ -776,41 +819,60 @@ const state = {
     isRecording: false,
     mediaRecorder: null,
     audioChunks: [],
+    recordingStartTime: null,
     darkMode: false,
     userBadges: [],
     usersBadges: {},
+    usersCache: {},
 };
 
 // ============================================================
 // 3. ШИФРОВАНИЕ
 // ============================================================
 async function encryptText(text) {
-    const encoder = new TextEncoder();
-    const data = encoder.encode(text);
-    const key = await crypto.subtle.importKey(
-        'raw',
-        encoder.encode(ENCRYPTION_KEY.padEnd(32, ' ')),
-        { name: 'AES-GCM' },
-        false,
-        ['encrypt']
-    );
-    const iv = crypto.getRandomValues(new Uint8Array(12));
-    const encrypted = await crypto.subtle.encrypt(
-        { name: 'AES-GCM', iv },
-        key,
-        data
-    );
-    const combined = new Uint8Array(iv.length + encrypted.byteLength);
-    combined.set(iv);
-    combined.set(new Uint8Array(encrypted), iv.length);
-    return btoa(String.fromCharCode(...combined));
+    try {
+        const encoder = new TextEncoder();
+        const data = encoder.encode(text);
+        const key = await crypto.subtle.importKey(
+            'raw',
+            new TextEncoder().encode(ENCRYPTION_KEY.padEnd(32, ' ')),
+            { name: 'AES-GCM' },
+            false,
+            ['encrypt']
+        );
+        const iv = crypto.getRandomValues(new Uint8Array(12));
+        const encrypted = await crypto.subtle.encrypt(
+            { name: 'AES-GCM', iv },
+            key,
+            data
+        );
+        const combined = new Uint8Array(iv.length + encrypted.byteLength);
+        combined.set(iv);
+        combined.set(new Uint8Array(encrypted), iv.length);
+        return btoa(String.fromCharCode(...combined));
+    } catch (err) {
+        console.error('Encrypt error:', err);
+        return text;
+    }
 }
 
 async function decryptText(encoded) {
     try {
-        const combined = Uint8Array.from(atob(encoded), c => c.charCodeAt(0));
+        if (!encoded || typeof encoded !== 'string') return encoded;
+        
+        let decoded;
+        try {
+            decoded = atob(encoded);
+        } catch {
+            return encoded;
+        }
+        
+        const combined = Uint8Array.from(decoded, c => c.charCodeAt(0));
+        if (combined.length < 13) return encoded;
+        
         const iv = combined.slice(0, 12);
         const data = combined.slice(12);
+        
         const key = await crypto.subtle.importKey(
             'raw',
             new TextEncoder().encode(ENCRYPTION_KEY.padEnd(32, ' ')),
@@ -824,6 +886,24 @@ async function decryptText(encoded) {
             data
         );
         return new TextDecoder().decode(decrypted);
+    } catch (err) {
+        console.error('Decrypt error:', err);
+        return encoded;
+    }
+}
+
+function decryptTextSync(encoded) {
+    try {
+        if (!encoded || typeof encoded !== 'string') return encoded;
+        let decoded;
+        try {
+            decoded = atob(encoded);
+        } catch {
+            return encoded;
+        }
+        const combined = Uint8Array.from(decoded, c => c.charCodeAt(0));
+        if (combined.length < 13) return encoded;
+        return encoded;
     } catch {
         return encoded;
     }
@@ -969,6 +1049,12 @@ function formatDate(date) {
 function getInitials(name) {
     if (!name) return '?';
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
 }
 
 function showScreen(screen) {
@@ -1131,7 +1217,7 @@ showLoginBtn.addEventListener('click', () => {
 });
 
 // ============================================================
-// 9. ЗАГРУЗКА ЧАТОВ (ИСПРАВЛЕННАЯ ВЕРСИЯ)
+// 9. ЗАГРУЗКА ЧАТОВ
 // ============================================================
 async function loadChats() {
     if (!state.user) {
@@ -1142,65 +1228,44 @@ async function loadChats() {
     try {
         console.log('📂 Загрузка чатов...');
         
-        // Получаем личные чаты - упрощенный запрос без joins
         const { data: personal, error: pErr } = await supabaseClient
             .from('personal_chats')
             .select('*')
             .or(`user1_id.eq.${state.user.id},user2_id.eq.${state.user.id}`);
 
-        if (pErr) {
-            console.error('❌ Ошибка загрузки personal_chats:', pErr);
-            throw pErr;
-        }
+        if (pErr) throw pErr;
 
-        console.log('📊 Личные чаты:', personal);
-
-        // Получаем группы
         const { data: groupMembers, error: gErr } = await supabaseClient
             .from('group_members')
             .select('group_id')
             .eq('user_id', state.user.id);
 
-        if (gErr) {
-            console.error('❌ Ошибка загрузки group_members:', gErr);
-            throw gErr;
-        }
+        if (gErr) throw gErr;
 
         const groupIds = groupMembers.map(gm => gm.group_id);
         let groups = [];
         if (groupIds.length) {
-            const { data: gData, error: gDataErr } = await supabaseClient
+            const { data: gData } = await supabaseClient
                 .from('groups')
                 .select('*')
                 .in('id', groupIds);
-            
-            if (gDataErr) {
-                console.error('❌ Ошибка загрузки groups:', gDataErr);
-                throw gDataErr;
-            }
             groups = gData || [];
         }
 
-        console.log('📊 Группы:', groups);
-
-        // Получаем данные пользователей
         const userIds = [];
         personal.forEach(pc => {
             if (pc.user1_id !== state.user.id) userIds.push(pc.user1_id);
             if (pc.user2_id !== state.user.id) userIds.push(pc.user2_id);
         });
 
-        // Загружаем значки
         const badgesMap = await loadUsersBadges([...userIds, state.user.id]);
         state.usersBadges = badgesMap;
 
         state.chats = [];
 
-        // Обрабатываем личные чаты
         for (let pc of personal) {
             const otherId = pc.user1_id === state.user.id ? pc.user2_id : pc.user1_id;
             
-            // Получаем данные другого пользователя
             const { data: userData, error: userErr } = await supabaseClient
                 .from('users')
                 .select('id, username, display_name')
@@ -1227,7 +1292,6 @@ async function loadChats() {
             });
         }
 
-        // Обрабатываем группы
         groups.forEach(g => {
             state.chats.push({
                 id: g.id,
@@ -1242,11 +1306,8 @@ async function loadChats() {
             });
         });
 
-        console.log('📊 Сформировано чатов:', state.chats.length);
-
-        // Загружаем последние сообщения
         for (let chat of state.chats) {
-            const { data: msgs, error: msgsErr } = await supabaseClient
+            const { data: msgs } = await supabaseClient
                 .from('messages')
                 .select('*')
                 .eq('chat_id', chat.id)
@@ -1254,20 +1315,25 @@ async function loadChats() {
                 .order('created_at', { ascending: false })
                 .limit(1);
 
-            if (msgsErr) {
-                console.error('❌ Ошибка загрузки сообщений:', msgsErr);
-                continue;
-            }
-
             if (msgs && msgs.length) {
                 const msg = msgs[0];
-                chat.last_message = msg.content_type === 'text' 
-                    ? await decryptText(msg.content) 
-                    : `[${msg.content_type}]`;
+                if (msg.content_type === 'text') {
+                    const decrypted = await decryptText(msg.content);
+                    chat.last_message = decrypted.length > 30 ? decrypted.slice(0, 30) + '...' : decrypted;
+                } else if (msg.content_type === 'image') {
+                    chat.last_message = '📷 Фото';
+                } else if (msg.content_type === 'video') {
+                    chat.last_message = '🎥 Видео';
+                } else if (msg.content_type === 'audio') {
+                    const duration = msg.duration || '';
+                    chat.last_message = `🎵 Аудио ${duration ? `(${Math.floor(duration/60)}:${String(duration%60).padStart(2,'0')})` : ''}`;
+                } else {
+                    chat.last_message = `[${msg.content_type}]`;
+                }
                 chat.last_message_time = msg.created_at;
             }
 
-            const { count, error: countErr } = await supabaseClient
+            const { count } = await supabaseClient
                 .from('messages')
                 .select('*', { count: 'exact', head: true })
                 .eq('chat_id', chat.id)
@@ -1275,9 +1341,7 @@ async function loadChats() {
                 .eq('is_read', false)
                 .neq('sender_id', state.user.id);
 
-            if (!countErr) {
-                chat.unread = count || 0;
-            }
+            chat.unread = count || 0;
         }
 
         state.chats.sort((a, b) => {
@@ -1292,13 +1356,12 @@ async function loadChats() {
         console.log('✅ Загружено чатов:', state.chats.length);
     } catch (err) {
         console.error('❌ Ошибка загрузки чатов:', err);
-        // Показываем сообщение об ошибке в интерфейсе
         chatList.innerHTML = `
             <div style="text-align:center; padding:40px 20px; color:#ff3b30;">
                 <div style="font-size:40px; margin-bottom:10px;">⚠️</div>
                 <p>Ошибка загрузки чатов</p>
                 <p style="font-size:13px; color:#6c7a8a;">${err.message || 'Попробуйте перезагрузить страницу'}</p>
-                <button class="btn btn-sm" style="margin-top:12px; width:auto;" onclick="loadChats()">🔄 Обновить</button>
+                <button class="btn btn-sm" style="margin-top:12px; width:auto;" onclick="location.reload()">🔄 Обновить</button>
             </div>
         `;
     }
@@ -1324,10 +1387,10 @@ function renderChats() {
             </div>
             <div class="chat-info">
                 <div class="chat-name">
-                    ${chat.name}
+                    ${escapeHtml(chat.name)}
                     ${chat.badges?.length ? renderBadgesMini(chat.badges) : ''}
                 </div>
-                <div class="chat-last-msg">${chat.last_message || 'Нет сообщений'}</div>
+                <div class="chat-last-msg">${escapeHtml(chat.last_message || 'Нет сообщений')}</div>
             </div>
             <div style="text-align:right; flex-shrink:0;">
                 <div class="chat-time">${chat.last_message_time ? formatTime(chat.last_message_time) : ''}</div>
@@ -1381,25 +1444,26 @@ async function loadMessages(chatId, chatType, searchTerm = '') {
             .eq('chat_type', chatType)
             .order('created_at', { ascending: true });
 
-        if (searchTerm) {
-            const { data: all } = await query;
-            const filtered = [];
-            for (let msg of all || []) {
-                if (msg.content_type === 'text') {
-                    const decrypted = await decryptText(msg.content);
-                    if (decrypted.toLowerCase().includes(searchTerm.toLowerCase())) {
-                        filtered.push(msg);
-                    }
-                }
-            }
-            renderMessages(filtered);
-            return;
-        }
-
         const { data, error } = await query;
         if (error) throw error;
         
         state.messages = data || [];
+        
+        // Загружаем данные отправителей для групповых чатов
+        if (chatType === 'group') {
+            const senderIds = [...new Set(state.messages.map(m => m.sender_id))];
+            if (senderIds.length) {
+                const { data: users } = await supabaseClient
+                    .from('users')
+                    .select('id, username, display_name')
+                    .in('id', senderIds);
+                
+                state.usersCache = {};
+                (users || []).forEach(u => {
+                    state.usersCache[u.id] = u;
+                });
+            }
+        }
         
         const senderIds = [...new Set(state.messages.map(m => m.sender_id))];
         const badgesMap = await loadUsersBadges(senderIds);
@@ -1412,7 +1476,7 @@ async function loadMessages(chatId, chatType, searchTerm = '') {
 }
 
 function renderMessages(messages) {
-    if (!messages.length) {
+    if (!messages || !messages.length) {
         messagesContainer.innerHTML = `
             <div style="text-align:center; padding:40px 20px; color:#6c7a8a;">
                 <div style="font-size:40px; margin-bottom:10px;">💭</div>
@@ -1426,7 +1490,7 @@ function renderMessages(messages) {
     let html = '';
     let lastDate = '';
 
-    messages.forEach(async (msg) => {
+    for (let msg of messages) {
         const isMine = msg.sender_id === state.user.id;
         const date = new Date(msg.created_at);
         const dateStr = formatDate(msg.created_at);
@@ -1437,17 +1501,58 @@ function renderMessages(messages) {
         }
 
         let content = '';
+        let canEdit = false;
+        
         if (msg.content_type === 'text') {
-            const decrypted = await decryptText(msg.content);
-            content = `<div class="msg-text">${decrypted}</div>`;
+            // Для отображения используем синхронную версию
+            let decrypted = msg.content;
+            try {
+                // Пытаемся расшифровать
+                const decoded = atob(msg.content);
+                const combined = Uint8Array.from(decoded, c => c.charCodeAt(0));
+                if (combined.length >= 13) {
+                    // Если это зашифрованное сообщение, расшифровываем асинхронно
+                    // Но для отображения используем асинхронный подход
+                    decryptText(msg.content).then(text => {
+                        const msgElement = document.getElementById(`msg-${msg.id}`);
+                        if (msgElement) {
+                            const textDiv = msgElement.querySelector('.msg-text');
+                            if (textDiv) textDiv.textContent = text;
+                        }
+                    });
+                    decrypted = '🔒 Загрузка...';
+                }
+            } catch {
+                decrypted = msg.content;
+            }
+            content = `<div class="msg-text">${escapeHtml(decrypted)}</div>`;
+            canEdit = true;
         } else if (msg.content_type === 'image') {
-            content = `<img src="${msg.content}" alt="image" loading="lazy" />`;
+            content = `
+                <div style="position:relative;">
+                    <img src="${msg.content}" alt="image" loading="lazy" 
+                         onclick="window.open('${msg.content}', '_blank')" />
+                </div>
+            `;
+            canEdit = false;
         } else if (msg.content_type === 'video') {
-            content = `<video controls src="${msg.content}" style="max-width:100%;"></video>`;
+            content = `
+                <video controls src="${msg.content}" 
+                       style="max-width:100%; max-height:300px; border-radius:12px; background:#000;">
+                </video>
+            `;
+            canEdit = false;
         } else if (msg.content_type === 'audio') {
-            content = `<audio controls src="${msg.content}"></audio>`;
+            content = `
+                <audio controls src="${msg.content}" 
+                       style="width:100%; max-width:280px; min-width:200px; height:40px; border-radius:20px;">
+                </audio>
+                <div class="audio-label">🎵 Аудиосообщение</div>
+            `;
+            canEdit = false;
         } else {
             content = `<div class="msg-text">[${msg.content_type}]</div>`;
+            canEdit = false;
         }
 
         let senderName = '';
@@ -1458,28 +1563,36 @@ function renderMessages(messages) {
                 senderName = chat.name;
                 senderBadges = chat.badges || [];
             } else {
-                const { data: userData } = await supabaseClient
-                    .from('users')
-                    .select('display_name, username')
-                    .eq('id', msg.sender_id)
-                    .single();
-                senderName = userData?.display_name || userData?.username || 'User';
+                const userData = state.usersCache?.[msg.sender_id];
+                if (userData) {
+                    senderName = userData.display_name || userData.username || 'User';
+                } else {
+                    senderName = 'User';
+                }
                 senderBadges = state.usersBadges[msg.sender_id] || [];
             }
         }
 
-        const actions = `
-            <div class="msg-actions">
-                ${isMine ? `
+        // Показываем кнопки
+        let actions = '';
+        if (isMine && canEdit) {
+            actions = `
+                <div class="msg-actions">
                     <button onclick="editMessage('${msg.id}')">✏️</button>
                     <button onclick="deleteMessage('${msg.id}')">🗑</button>
-                ` : ''}
-            </div>
-        `;
+                </div>
+            `;
+        } else if (isMine && !canEdit) {
+            actions = `
+                <div class="msg-actions">
+                    <button onclick="deleteMessage('${msg.id}')">🗑</button>
+                </div>
+            `;
+        }
 
         const senderDisplay = !isMine ? `
             <div class="sender-name">
-                ${senderName}
+                ${escapeHtml(senderName)}
                 ${senderBadges.length ? renderBadgesMini(senderBadges) : ''}
             </div>
         ` : '';
@@ -1490,15 +1603,31 @@ function renderMessages(messages) {
                 ${content}
                 <div class="msg-meta">
                     <span>${formatTime(msg.created_at)}</span>
-                    ${msg.is_edited ? '✎' : ''}
+                    ${msg.is_edited && canEdit ? '✎' : ''}
                 </div>
                 ${actions}
             </div>
         `;
-    });
+    }
 
     messagesContainer.innerHTML = html;
     scrollToBottom();
+    
+    // Асинхронно расшифровываем текстовые сообщения
+    for (let msg of messages) {
+        if (msg.content_type === 'text') {
+            try {
+                const decrypted = await decryptText(msg.content);
+                const msgElement = document.getElementById(`msg-${msg.id}`);
+                if (msgElement) {
+                    const textDiv = msgElement.querySelector('.msg-text');
+                    if (textDiv) textDiv.textContent = decrypted;
+                }
+            } catch (e) {
+                console.error('Decrypt error:', e);
+            }
+        }
+    }
 }
 
 function scrollToBottom() {
@@ -1510,7 +1639,7 @@ function scrollToBottom() {
 // ============================================================
 // 11. ОТПРАВКА СООБЩЕНИЙ
 // ============================================================
-async function sendMessage(content, contentType = 'text') {
+async function sendMessage(content, contentType = 'text', duration = null) {
     if (!state.currentChat) return;
     if (!content && contentType === 'text') return;
 
@@ -1520,20 +1649,24 @@ async function sendMessage(content, contentType = 'text') {
             encryptedContent = await encryptText(content);
         }
 
+        const messageData = {
+            chat_id: state.currentChat.id,
+            chat_type: state.currentChat.type,
+            sender_id: state.user.id,
+            content: encryptedContent,
+            content_type: contentType,
+            created_at: new Date().toISOString(),
+            is_read: false,
+            is_edited: false
+        };
+        
+        if (contentType === 'audio' && duration) {
+            messageData.duration = duration;
+        }
+
         const { data, error } = await supabaseClient
             .from('messages')
-            .insert([
-                {
-                    chat_id: state.currentChat.id,
-                    chat_type: state.currentChat.type,
-                    sender_id: state.user.id,
-                    content: encryptedContent,
-                    content_type: contentType,
-                    created_at: new Date().toISOString(),
-                    is_read: false,
-                    is_edited: false
-                }
-            ])
+            .insert([messageData])
             .select()
             .single();
 
@@ -1544,7 +1677,17 @@ async function sendMessage(content, contentType = 'text') {
         
         const chat = state.chats.find(c => c.id === state.currentChat.id && c.type === state.currentChat.type);
         if (chat) {
-            chat.last_message = contentType === 'text' ? content : `[${contentType}]`;
+            if (contentType === 'text') {
+                chat.last_message = content;
+            } else if (contentType === 'image') {
+                chat.last_message = '📷 Фото';
+            } else if (contentType === 'video') {
+                chat.last_message = '🎥 Видео';
+            } else if (contentType === 'audio') {
+                chat.last_message = '🎵 Аудио';
+            } else {
+                chat.last_message = `[${contentType}]`;
+            }
             chat.last_message_time = data.created_at;
             renderChats();
         }
@@ -1559,10 +1702,13 @@ async function sendMessage(content, contentType = 'text') {
 }
 
 // ============================================================
-// 12. ФАЙЛЫ И АУДИО
+// 12. ФАЙЛЫ
 // ============================================================
 async function handleFileUpload(files) {
-    if (!state.currentChat) return;
+    if (!state.currentChat) {
+        alert('Сначала откройте чат');
+        return;
+    }
 
     for (const file of files) {
         try {
@@ -1571,29 +1717,43 @@ async function handleFileUpload(files) {
             else if (file.type.startsWith('video/')) contentType = 'video';
             else if (file.type.startsWith('audio/')) contentType = 'audio';
 
-            if (file.size < 100 * 1024) {
+            console.log(`📤 Загрузка ${contentType}:`, file.name, file.size);
+
+            // Для маленьких файлов используем base64
+            if (file.size < 1024 * 1024) {
                 const reader = new FileReader();
-                reader.onload = async (e) => {
-                    const base64 = e.target.result;
-                    await sendMessage(base64, contentType);
-                };
-                reader.readAsDataURL(file);
+                const base64 = await new Promise((resolve) => {
+                    reader.onload = (e) => resolve(e.target.result);
+                    reader.readAsDataURL(file);
+                });
+                await sendMessage(base64, contentType);
                 continue;
             }
 
-            const fileExt = file.name.split('.').pop();
+            // Для больших файлов - в Supabase Storage
+            const fileExt = file.name.split('.').pop() || 'file';
             const fileName = `${state.user.id}/${Date.now()}.${fileExt}`;
+            
+            console.log('📤 Загрузка в Storage:', fileName);
             
             const { data, error } = await supabaseClient.storage
                 .from('rugrom_files')
-                .upload(fileName, file);
+                .upload(fileName, file, {
+                    cacheControl: '3600',
+                    upsert: false
+                });
 
-            if (error) throw error;
+            if (error) {
+                console.error('❌ Ошибка загрузки в Storage:', error);
+                alert('Ошибка загрузки файла: ' + error.message);
+                continue;
+            }
 
             const { data: urlData } = supabaseClient.storage
                 .from('rugrom_files')
                 .getPublicUrl(fileName);
 
+            console.log('✅ Файл загружен:', urlData.publicUrl);
             await sendMessage(urlData.publicUrl, contentType);
         } catch (err) {
             console.error('File upload error:', err);
@@ -1602,22 +1762,27 @@ async function handleFileUpload(files) {
     }
 }
 
+// ============================================================
+// 13. АУДИО ЗАПИСЬ
+// ============================================================
 async function startRecording() {
     try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         state.mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm;codecs=opus' });
         state.audioChunks = [];
+        state.recordingStartTime = Date.now();
 
         state.mediaRecorder.ondataavailable = (e) => {
             if (e.data.size > 0) state.audioChunks.push(e.data);
         };
 
         state.mediaRecorder.onstop = async () => {
+            const duration = Math.round((Date.now() - state.recordingStartTime) / 1000);
             const blob = new Blob(state.audioChunks, { type: 'audio/webm' });
             const reader = new FileReader();
             reader.onload = async (e) => {
                 const base64 = e.target.result;
-                await sendMessage(base64, 'audio');
+                await sendMessage(base64, 'audio', duration);
             };
             reader.readAsDataURL(blob);
             
@@ -1643,9 +1808,15 @@ function stopRecording() {
 }
 
 // ============================================================
-// 13. РЕДАКТИРОВАНИЕ / УДАЛЕНИЕ
+// 14. РЕДАКТИРОВАНИЕ / УДАЛЕНИЕ
 // ============================================================
 window.editMessage = async function(messageId) {
+    const msg = state.messages.find(m => m.id === messageId);
+    if (!msg || msg.content_type !== 'text') {
+        alert('Можно редактировать только текстовые сообщения');
+        return;
+    }
+    
     const newText = prompt('Редактировать сообщение:');
     if (newText === null) return;
     if (!newText.trim()) {
@@ -1662,10 +1833,10 @@ window.editMessage = async function(messageId) {
 
         if (error) throw error;
         
-        const msg = state.messages.find(m => m.id === messageId);
-        if (msg) {
-            msg.content = encrypted;
-            msg.is_edited = true;
+        const msgIndex = state.messages.findIndex(m => m.id === messageId);
+        if (msgIndex !== -1) {
+            state.messages[msgIndex].content = encrypted;
+            state.messages[msgIndex].is_edited = true;
             renderMessages(state.messages);
         }
     } catch (err) {
@@ -1693,7 +1864,7 @@ window.deleteMessage = async function(messageId) {
 };
 
 // ============================================================
-// 14. ГРУППЫ И ПОИСК
+// 15. ГРУППЫ И ПОИСК
 // ============================================================
 async function createGroup() {
     const name = groupNameInput.value.trim();
@@ -1756,7 +1927,6 @@ async function searchUser() {
             return;
         }
 
-        // Проверяем, есть ли уже чат
         const { data: existing } = await supabaseClient
             .from('personal_chats')
             .select('id')
@@ -1766,7 +1936,7 @@ async function searchUser() {
 
         if (existing && existing.length) {
             searchResult.innerHTML = `✅ Уже есть чат с <strong>${data.display_name || data.username}</strong>`;
-            // Находим чат и открываем
+            await loadChats();
             const chat = state.chats.find(c => c.type === 'personal' && c.user_id === data.id);
             if (chat) openChat(chat);
             return;
@@ -1787,14 +1957,16 @@ async function searchUser() {
         if (chatErr) throw chatErr;
 
         searchResult.innerHTML = `✅ Чат с <strong>${data.display_name || data.username}</strong> создан!`;
-        loadChats();
+        await loadChats();
+        const chat = state.chats.find(c => c.type === 'personal' && c.user_id === data.id);
+        if (chat) openChat(chat);
     } catch (err) {
         searchResult.textContent = 'Ошибка: ' + err.message;
     }
 }
 
 // ============================================================
-// 15. НАСТРОЙКИ
+// 16. НАСТРОЙКИ
 // ============================================================
 async function updateDisplayName() {
     const name = displayNameInput.value.trim();
@@ -1838,46 +2010,66 @@ function toggleTheme(theme) {
 }
 
 // ============================================================
-// 16. POLLING
+// 17. ПОЛЛИНГ
 // ============================================================
 function startPolling() {
     if (state.pollingInterval) clearInterval(state.pollingInterval);
     
     state.pollingInterval = setInterval(async () => {
         if (state.currentChat) {
-            const { data, error } = await supabaseClient
-                .from('messages')
-                .select('*')
-                .eq('chat_id', state.currentChat.id)
-                .eq('chat_type', state.currentChat.type)
-                .gt('created_at', state.messages.length ? state.messages[state.messages.length - 1].created_at : '2000-01-01')
-                .order('created_at', { ascending: true });
-
-            if (data && data.length) {
-                const senderIds = [...new Set(data.map(m => m.sender_id))];
-                const badgesMap = await loadUsersBadges(senderIds);
-                Object.assign(state.usersBadges, badgesMap);
+            try {
+                const lastMsg = state.messages.length ? state.messages[state.messages.length - 1] : null;
+                const lastTime = lastMsg ? lastMsg.created_at : new Date(0).toISOString();
                 
-                state.messages = state.messages.concat(data);
-                renderMessages(state.messages);
-                
-                await supabaseClient
+                const { data, error } = await supabaseClient
                     .from('messages')
-                    .update({ is_read: true })
-                    .in('id', data.filter(m => m.sender_id !== state.user.id).map(m => m.id));
+                    .select('*')
+                    .eq('chat_id', state.currentChat.id)
+                    .eq('chat_type', state.currentChat.type)
+                    .gt('created_at', lastTime)
+                    .order('created_at', { ascending: true });
+
+                if (error) throw error;
+
+                if (data && data.length) {
+                    const senderIds = [...new Set(data.map(m => m.sender_id))];
+                    const badgesMap = await loadUsersBadges(senderIds);
+                    Object.assign(state.usersBadges, badgesMap);
+                    
+                    state.messages = state.messages.concat(data);
+                    renderMessages(state.messages);
+                    
+                    await supabaseClient
+                        .from('messages')
+                        .update({ is_read: true })
+                        .in('id', data.filter(m => m.sender_id !== state.user.id).map(m => m.id));
+                    
+                    const chat = state.chats.find(c => c.id === state.currentChat.id && c.type === state.currentChat.type);
+                    if (chat) {
+                        const lastMsg = data[data.length - 1];
+                        if (lastMsg.content_type === 'text') {
+                            const decrypted = await decryptText(lastMsg.content);
+                            chat.last_message = decrypted.length > 30 ? decrypted.slice(0, 30) + '...' : decrypted;
+                        } else if (lastMsg.content_type === 'image') {
+                            chat.last_message = '📷 Фото';
+                        } else if (lastMsg.content_type === 'video') {
+                            chat.last_message = '🎥 Видео';
+                        } else if (lastMsg.content_type === 'audio') {
+                            chat.last_message = '🎵 Аудио';
+                        }
+                        chat.last_message_time = lastMsg.created_at;
+                        renderChats();
+                    }
+                }
+            } catch (err) {
+                console.error('Polling error:', err);
             }
         }
-        
-        const oldChats = [...state.chats];
-        await loadChats();
-        if (JSON.stringify(oldChats.map(c => c.unread)) !== JSON.stringify(state.chats.map(c => c.unread))) {
-            renderChats();
-        }
-    }, 2500);
+    }, 3000);
 }
 
 // ============================================================
-// 17. ОПРОС
+// 18. ОПРОС
 // ============================================================
 function showPoll() {
     pollOverlay.classList.add('show');
@@ -1974,7 +2166,7 @@ function renderBar(data, total) {
 }
 
 // ============================================================
-// 18. УДАЛЕНИЕ АККАУНТА
+// 19. УДАЛЕНИЕ АККАУНТА
 // ============================================================
 async function deleteAccount() {
     if (!confirm('Вы уверены? Это удалит все ваши данные!')) return;
@@ -2024,7 +2216,7 @@ async function deleteAccount() {
 }
 
 // ============================================================
-// 19. НАВИГАЦИЯ (свайпы)
+// 20. НАВИГАЦИЯ (свайпы)
 // ============================================================
 let touchStartX = 0;
 let touchEndX = 0;
@@ -2063,7 +2255,7 @@ function handleSwipe() {
 }
 
 // ============================================================
-// 20. ОБРАБОТЧИКИ СОБЫТИЙ
+// 21. ОБРАБОТЧИКИ СОБЫТИЙ
 // ============================================================
 loginBtn.addEventListener('click', login);
 loginUsername.addEventListener('keydown', e => e.key === 'Enter' && login());
@@ -2179,7 +2371,7 @@ pollOverlay.addEventListener('click', (e) => {
 });
 
 // ============================================================
-// 21. ИНИЦИАЛИЗАЦИЯ
+// 22. ИНИЦИАЛИЗАЦИЯ
 // ============================================================
 async function init() {
     console.log('🚀 Запуск Rugrom...');
