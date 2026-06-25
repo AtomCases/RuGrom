@@ -65,17 +65,18 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 16px 20px 12px;
+            padding: 12px 16px;
             border-bottom: 1px solid #e8f0f8;
             flex-shrink: 0;
             background: inherit;
             z-index: 10;
+            min-height: 56px;
         }
         body.dark .header {
             border-bottom-color: #2a3a4a;
         }
         .header h2 {
-            font-size: 20px;
+            font-size: 18px;
             color: #007aff;
             font-weight: 700;
         }
@@ -85,11 +86,11 @@
         .header-left {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 8px;
         }
         .header-right {
             display: flex;
-            gap: 8px;
+            gap: 6px;
             align-items: center;
         }
         
@@ -97,17 +98,18 @@
             background: #007aff;
             color: white;
             border: none;
-            padding: 12px 24px;
+            padding: 10px 20px;
             border-radius: 40px;
-            font-size: 16px;
+            font-size: 15px;
             font-weight: 600;
             cursor: pointer;
             transition: all 0.2s;
             white-space: nowrap;
             touch-action: manipulation;
             width: 100%;
+            min-height: 44px;
         }
-        .btn:active { transform: scale(0.97); }
+        .btn:active { transform: scale(0.95); }
         .btn:hover { background: #005bbf; }
         .btn-outline {
             background: transparent;
@@ -122,7 +124,19 @@
         .btn-sm {
             padding: 6px 14px;
             font-size: 13px;
+            min-height: 34px;
             width: auto;
+        }
+        .btn-icon {
+            padding: 8px 12px;
+            font-size: 18px;
+            min-height: 44px;
+            min-width: 44px;
+            width: auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
         }
         .btn-link {
             background: none;
@@ -130,6 +144,7 @@
             padding: 8px;
             font-size: 14px;
             width: auto;
+            min-height: auto;
         }
         .btn-link:hover {
             text-decoration: underline;
@@ -138,14 +153,15 @@
         
         input, textarea, select {
             width: 100%;
-            padding: 14px 18px;
+            padding: 12px 16px;
             border: 2px solid #dce8f2;
             border-radius: 40px;
-            font-size: 16px;
+            font-size: 15px;
             outline: none;
             transition: 0.2s;
             background: white;
             color: #1a2332;
+            min-height: 44px;
         }
         body.dark input, body.dark textarea, body.dark select {
             background: #263445;
@@ -240,15 +256,16 @@
             -webkit-overflow-scrolling: touch;
         }
         .chat-item {
-            padding: 14px 16px;
+            padding: 12px 16px;
             border-bottom: 1px solid #eef4f8;
             cursor: pointer;
             display: flex;
             align-items: center;
-            gap: 14px;
+            gap: 12px;
             transition: background 0.15s;
             touch-action: manipulation;
             position: relative;
+            min-height: 60px;
         }
         body.dark .chat-item {
             border-bottom-color: #2a3a4a;
@@ -314,7 +331,7 @@
             color: #8a9aaa;
         }
         .chat-time {
-            font-size: 12px;
+            font-size: 11px;
             color: #8a9aaa;
             flex-shrink: 0;
         }
@@ -327,17 +344,6 @@
             font-weight: 600;
             min-width: 20px;
             text-align: center;
-        }
-        .chat-type-badge {
-            font-size: 10px;
-            background: #e8f0f8;
-            padding: 2px 8px;
-            border-radius: 12px;
-            color: #4a5a6a;
-        }
-        body.dark .chat-type-badge {
-            background: #2a3a4a;
-            color: #8a9aaa;
         }
         
         .search-section {
@@ -360,7 +366,7 @@
             -webkit-overflow-scrolling: touch;
         }
         .message {
-            max-width: 85%;
+            max-width: 82%;
             padding: 10px 14px;
             border-radius: 20px;
             background: #e8f0f8;
@@ -454,6 +460,7 @@
             cursor: pointer;
             color: inherit;
             transition: 0.2s;
+            min-height: 28px;
         }
         body.dark .message .msg-actions button {
             background: rgba(255,255,255,0.08);
@@ -467,27 +474,72 @@
             to { opacity: 1; transform: translateY(0); }
         }
         
+        /* ===== НИЖНЯЯ ПАНЕЛЬ - УЛУЧШЕННАЯ ===== */
         .input-area {
-            padding: 10px 16px;
+            padding: 8px 12px;
             border-top: 1px solid #e8f0f8;
             flex-shrink: 0;
             background: inherit;
+            padding-bottom: max(8px, env(safe-area-inset-bottom));
         }
         body.dark .input-area {
             border-top-color: #2a3a4a;
         }
         .input-row {
             display: flex;
-            gap: 8px;
+            gap: 6px;
             align-items: center;
         }
         .input-row input {
             flex: 1;
+            padding: 10px 16px;
+            font-size: 15px;
+            min-height: 44px;
+            border-radius: 25px;
         }
         .input-row .btn {
             width: auto;
-            padding: 10px 16px;
+            min-height: 44px;
+            min-width: 44px;
+            padding: 8px 14px;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 25px;
+        }
+        .input-row .btn-send {
+            background: #007aff;
+            color: white;
+            min-width: 50px;
             font-size: 16px;
+        }
+        .input-row .btn-send:active {
+            transform: scale(0.92);
+        }
+        .input-row .btn-icon {
+            background: transparent;
+            border: 2px solid #007aff;
+            color: #007aff;
+            min-width: 44px;
+            min-height: 44px;
+            padding: 0;
+            border-radius: 50%;
+            font-size: 18px;
+        }
+        .input-row .btn-icon:active {
+            transform: scale(0.9);
+        }
+        .input-row .btn-icon.recording {
+            background: #ff3b30;
+            border-color: #ff3b30;
+            color: white;
+            animation: pulse 1s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
         }
         .recording-indicator {
             font-size: 12px;
@@ -495,6 +547,7 @@
             padding: 4px 0;
             text-align: center;
             min-height: 24px;
+            font-weight: 600;
         }
         
         .settings-group {
@@ -642,6 +695,19 @@
                 height: 90vh;
             }
         }
+        @media (max-width: 380px) {
+            .input-row .btn {
+                min-width: 38px;
+                min-height: 38px;
+                padding: 6px 10px;
+                font-size: 16px;
+            }
+            .input-row input {
+                min-height: 38px;
+                padding: 8px 12px;
+                font-size: 14px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -692,10 +758,6 @@
             <button class="btn btn-sm" id="searchUserBtn">Найти</button>
         </div>
         <div id="searchResult" style="font-size:13px; padding:0 16px; min-height:24px;"></div>
-        <div style="padding:4px 16px 8px; display:flex; gap:8px; flex-shrink:0;">
-            <input id="groupNameInput" placeholder="Название группы" style="flex:1;" />
-            <button class="btn btn-sm" id="createGroupBtn">➕ Группа</button>
-        </div>
         <div id="chatList" class="chat-list"></div>
     </div>
 
@@ -703,7 +765,7 @@
     <div id="chatScreen" class="screen">
         <div class="header">
             <div class="header-left">
-                <button class="btn btn-sm btn-outline" id="backToChatsBtn" style="font-size:20px; width:auto; padding:4px 12px;">←</button>
+                <button class="btn btn-sm btn-outline" id="backToChatsBtn" style="font-size:20px; width:auto; padding:4px 12px; min-height:34px;">←</button>
                 <h2 id="chatTitle">Чат</h2>
             </div>
             <div class="header-right">
@@ -719,10 +781,10 @@
             <div id="recordingStatus" class="recording-indicator"></div>
             <div class="input-row">
                 <input id="messageInput" placeholder="Сообщение..." />
-                <button class="btn btn-sm" id="sendTextBtn">📤</button>
-                <button class="btn btn-sm btn-outline" id="audioRecordBtn">🎤</button>
-                <button class="btn btn-sm btn-outline" id="fileUploadBtn">📎</button>
-                <input type="file" id="fileInput" accept="image/*,video/*,audio/*" style="display:none" multiple />
+                <button class="btn btn-icon" id="audioRecordBtn" title="Аудиосообщение">🎤</button>
+                <button class="btn btn-icon" id="fileUploadBtn" title="Фото/Видео">📎</button>
+                <button class="btn btn-send" id="sendTextBtn">📤</button>
+                <input type="file" id="fileInput" accept="image/*,video/*" style="display:none" multiple />
             </div>
         </div>
     </div>
@@ -731,7 +793,7 @@
     <div id="settingsScreen" class="screen">
         <div class="header">
             <div class="header-left">
-                <button class="btn btn-sm btn-outline" id="backFromSettingsBtn" style="font-size:20px; width:auto; padding:4px 12px;">←</button>
+                <button class="btn btn-sm btn-outline" id="backFromSettingsBtn" style="font-size:20px; width:auto; padding:4px 12px; min-height:34px;">←</button>
                 <h2>⚙️ Настройки</h2>
             </div>
         </div>
@@ -978,8 +1040,6 @@ const chatList = $('chatList');
 const searchUserInput = $('searchUserInput');
 const searchUserBtn = $('searchUserBtn');
 const searchResult = $('searchResult');
-const groupNameInput = $('groupNameInput');
-const createGroupBtn = $('createGroupBtn');
 
 const chatTitle = $('chatTitle');
 const messagesContainer = $('messagesContainer');
@@ -1056,7 +1116,7 @@ function showRegisterError(msg) {
 }
 
 // ============================================================
-// 7. АУТЕНТИФИКАЦИЯ (ИСПРАВЛЕННАЯ)
+// 7. АУТЕНТИФИКАЦИЯ
 // ============================================================
 async function register() {
     const username = regUsername.value.trim();
@@ -1145,7 +1205,6 @@ async function login() {
         const hashedPassword = btoa(password + 'salt');
         console.log('🔐 Хеш пароля:', hashedPassword);
         
-        // Проверяем существование пользователя
         const { data: userExists, error: existsErr } = await supabaseClient
             .from('users')
             .select('username, display_name')
@@ -1160,7 +1219,6 @@ async function login() {
         
         console.log('👤 Найден пользователь:', userExists.username);
         
-        // Ищем с паролем
         const { data, error } = await supabaseClient
             .from('users')
             .select('*')
@@ -1222,7 +1280,7 @@ showLoginBtn.addEventListener('click', () => {
 });
 
 // ============================================================
-// 9. ЗАГРУЗКА ЧАТОВ
+// 9. ЗАГРУЗКА ЧАТОВ (БЕЗ ГРУПП)
 // ============================================================
 async function loadChats() {
     if (!state.user) {
@@ -1239,23 +1297,6 @@ async function loadChats() {
             .or(`user1_id.eq.${state.user.id},user2_id.eq.${state.user.id}`);
 
         if (pErr) throw pErr;
-
-        const { data: groupMembers, error: gErr } = await supabaseClient
-            .from('group_members')
-            .select('group_id')
-            .eq('user_id', state.user.id);
-
-        if (gErr) throw gErr;
-
-        const groupIds = groupMembers.map(gm => gm.group_id);
-        let groups = [];
-        if (groupIds.length) {
-            const { data: gData } = await supabaseClient
-                .from('groups')
-                .select('*')
-                .in('id', groupIds);
-            groups = gData || [];
-        }
 
         const userIds = [];
         personal.forEach(pc => {
@@ -1296,20 +1337,6 @@ async function loadChats() {
                 badges: userBadges
             });
         }
-
-        groups.forEach(g => {
-            state.chats.push({
-                id: g.id,
-                type: 'group',
-                name: g.name || 'Группа',
-                avatar: '👥',
-                last_message: '',
-                last_message_time: '',
-                unread: 0,
-                created_by: g.created_by,
-                badges: []
-            });
-        });
 
         for (let chat of state.chats) {
             const { data: msgs } = await supabaseClient
@@ -1378,7 +1405,7 @@ function renderChats() {
             <div style="text-align:center; padding:40px 20px; color:#6c7a8a;">
                 <div style="font-size:40px; margin-bottom:10px;">💬</div>
                 <p>Нет чатов</p>
-                <p style="font-size:13px;">Найдите пользователя или создайте группу</p>
+                <p style="font-size:13px;">Найдите пользователя по @username</p>
             </div>
         `;
         return;
@@ -1400,7 +1427,6 @@ function renderChats() {
             <div style="text-align:right; flex-shrink:0;">
                 <div class="chat-time">${chat.last_message_time ? formatTime(chat.last_message_time) : ''}</div>
                 ${chat.unread > 0 ? `<div class="chat-badge">${chat.unread}</div>` : ''}
-                <div class="chat-type-badge">${chat.type === 'personal' ? '👤' : '👥'}</div>
             </div>
         </div>
     `).join('');
@@ -1453,21 +1479,6 @@ async function loadMessages(chatId, chatType, searchTerm = '') {
         if (error) throw error;
         
         state.messages = data || [];
-        
-        if (chatType === 'group') {
-            const senderIds = [...new Set(state.messages.map(m => m.sender_id))];
-            if (senderIds.length) {
-                const { data: users } = await supabaseClient
-                    .from('users')
-                    .select('id, username, display_name')
-                    .in('id', senderIds);
-                
-                state.usersCache = {};
-                (users || []).forEach(u => {
-                    state.usersCache[u.id] = u;
-                });
-            }
-        }
         
         const senderIds = [...new Set(state.messages.map(m => m.sender_id))];
         const badgesMap = await loadUsersBadges(senderIds);
@@ -1655,7 +1666,7 @@ async function sendMessage(content, contentType = 'text', duration = null) {
             is_edited: false
         };
         
-        if (contentType === 'audio' && duration) {
+        if (contentType === 'audio' && duration !== null && duration !== undefined) {
             messageData.duration = duration;
         }
 
@@ -1665,7 +1676,10 @@ async function sendMessage(content, contentType = 'text', duration = null) {
             .select()
             .single();
 
-        if (error) throw error;
+        if (error) {
+            console.error('❌ Ошибка отправки в БД:', error);
+            throw error;
+        }
         
         state.messages.push(data);
         renderMessages(state.messages);
@@ -1679,7 +1693,7 @@ async function sendMessage(content, contentType = 'text', duration = null) {
             } else if (contentType === 'video') {
                 chat.last_message = '🎥 Видео';
             } else if (contentType === 'audio') {
-                chat.last_message = '🎵 Аудио';
+                chat.last_message = `🎵 Аудио ${duration ? `(${Math.floor(duration/60)}:${String(duration%60).padStart(2,'0')})` : ''}`;
             } else {
                 chat.last_message = `[${contentType}]`;
             }
@@ -1691,7 +1705,7 @@ async function sendMessage(content, contentType = 'text', duration = null) {
         messageInput.value = '';
         messageInput.focus();
     } catch (err) {
-        console.error('Send message error:', err);
+        console.error('❌ Ошибка отправки:', err);
         alert('Ошибка отправки: ' + err.message);
     }
 }
@@ -1710,7 +1724,6 @@ async function handleFileUpload(files) {
             let contentType = 'file';
             if (file.type.startsWith('image/')) contentType = 'image';
             else if (file.type.startsWith('video/')) contentType = 'video';
-            else if (file.type.startsWith('audio/')) contentType = 'audio';
 
             console.log(`📤 Загрузка ${contentType}:`, file.name, file.size);
 
@@ -1771,25 +1784,31 @@ async function startRecording() {
 
         state.mediaRecorder.onstop = async () => {
             const duration = Math.round((Date.now() - state.recordingStartTime) / 1000);
+            console.log('⏱ Длительность записи:', duration, 'сек');
+            
             const blob = new Blob(state.audioChunks, { type: 'audio/webm' });
             const reader = new FileReader();
             reader.onload = async (e) => {
                 const base64 = e.target.result;
+                console.log('📤 Отправка аудио, размер:', Math.round(base64.length / 1024), 'KB');
                 await sendMessage(base64, 'audio', duration);
             };
             reader.readAsDataURL(blob);
             
             stream.getTracks().forEach(track => track.stop());
             recordingStatus.textContent = '';
+            audioRecordBtn.classList.remove('recording');
             audioRecordBtn.textContent = '🎤';
             state.isRecording = false;
         };
 
         state.mediaRecorder.start();
         state.isRecording = true;
+        audioRecordBtn.classList.add('recording');
         audioRecordBtn.textContent = '⏹';
         recordingStatus.textContent = '🔴 Запись... Нажмите ещё раз для остановки';
     } catch (err) {
+        console.error('❌ Ошибка записи:', err);
         alert('Нет доступа к микрофону: ' + err.message);
     }
 }
@@ -1857,49 +1876,8 @@ window.deleteMessage = async function(messageId) {
 };
 
 // ============================================================
-// 15. ГРУППЫ И ПОИСК
+// 15. ПОИСК ПОЛЬЗОВАТЕЛЯ
 // ============================================================
-async function createGroup() {
-    const name = groupNameInput.value.trim();
-    if (!name) {
-        alert('Введите название группы');
-        return;
-    }
-
-    try {
-        const { data: group, error } = await supabaseClient
-            .from('groups')
-            .insert([
-                {
-                    name: name,
-                    created_by: state.user.id,
-                    created_at: new Date().toISOString()
-                }
-            ])
-            .select()
-            .single();
-
-        if (error) throw error;
-
-        await supabaseClient
-            .from('group_members')
-            .insert([
-                {
-                    group_id: group.id,
-                    user_id: state.user.id,
-                    role: 'admin',
-                    joined_at: new Date().toISOString()
-                }
-            ]);
-
-        groupNameInput.value = '';
-        loadChats();
-        alert('✅ Группа создана!');
-    } catch (err) {
-        alert('Ошибка: ' + err.message);
-    }
-}
-
 async function searchUser() {
     const query = searchUserInput.value.trim();
     if (!query) {
@@ -2172,11 +2150,6 @@ async function deleteAccount() {
             .eq('sender_id', state.user.id);
 
         await supabaseClient
-            .from('group_members')
-            .delete()
-            .eq('user_id', state.user.id);
-
-        await supabaseClient
             .from('personal_chats')
             .delete()
             .or(`user1_id.eq.${state.user.id},user2_id.eq.${state.user.id}`);
@@ -2279,7 +2252,6 @@ themeSelect.addEventListener('change', (e) => {
 
 searchUserBtn.addEventListener('click', searchUser);
 searchUserInput.addEventListener('keydown', e => e.key === 'Enter' && searchUser());
-createGroupBtn.addEventListener('click', createGroup);
 
 backToChatsBtn.addEventListener('click', goBackToChats);
 
@@ -2346,7 +2318,6 @@ chatInfoBtn.addEventListener('click', () => {
         alert(`
 📋 Информация о чате
 Название: ${state.currentChat.name}
-Тип: ${state.currentChat.type === 'personal' ? 'Личный' : 'Группа'}
 ID: ${state.currentChat.id}
 Сообщений: ${state.messages.length}
         `);
