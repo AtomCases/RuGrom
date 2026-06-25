@@ -761,7 +761,6 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const ENCRYPTION_KEY = 'RugromSecretKey2024!@#';
 
 console.log('🔌 Подключение к Supabase...');
-// Используем другое имя переменной, чтобы избежать конфликта
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 console.log('✅ Supabase подключен');
 
@@ -1132,7 +1131,7 @@ showLoginBtn.addEventListener('click', () => {
 });
 
 // ============================================================
-// 9. ЗАГРУЗКА ЧАТОВ
+// 9. ЗАГРУЗКА ЧАТОВ (ИСПРАВЛЕННАЯ ВЕРСИЯ)
 // ============================================================
 async function loadChats() {
     if (!state.user) {
@@ -1143,68 +1142,92 @@ async function loadChats() {
     try {
         console.log('📂 Загрузка чатов...');
         
+        // Получаем личные чаты - упрощенный запрос без joins
         const { data: personal, error: pErr } = await supabaseClient
             .from('personal_chats')
-            .select(`
-                id,
-                user1_id,
-                user2_id,
-                users!personal_chats_user1_id_fkey (id, username, display_name),
-                users!personal_chats_user2_id_fkey (id, username, display_name)
-            `)
+            .select('*')
             .or(`user1_id.eq.${state.user.id},user2_id.eq.${state.user.id}`);
 
-        if (pErr) throw pErr;
+        if (pErr) {
+            console.error('❌ Ошибка загрузки personal_chats:', pErr);
+            throw pErr;
+        }
 
+        console.log('📊 Личные чаты:', personal);
+
+        // Получаем группы
         const { data: groupMembers, error: gErr } = await supabaseClient
             .from('group_members')
-            .select(`
-                group_id,
-                groups!inner (id, name, created_by)
-            `)
+            .select('group_id')
             .eq('user_id', state.user.id);
 
-        if (gErr) throw gErr;
+        if (gErr) {
+            console.error('❌ Ошибка загрузки group_members:', gErr);
+            throw gErr;
+        }
 
         const groupIds = groupMembers.map(gm => gm.group_id);
         let groups = [];
         if (groupIds.length) {
-            const { data: gData } = await supabaseClient
+            const { data: gData, error: gDataErr } = await supabaseClient
                 .from('groups')
                 .select('*')
                 .in('id', groupIds);
+            
+            if (gDataErr) {
+                console.error('❌ Ошибка загрузки groups:', gDataErr);
+                throw gDataErr;
+            }
             groups = gData || [];
         }
 
+        console.log('📊 Группы:', groups);
+
+        // Получаем данные пользователей
         const userIds = [];
         personal.forEach(pc => {
-            const other = pc.user1_id === state.user.id ? pc.users2 : pc.users1;
-            if (other?.id) userIds.push(other.id);
+            if (pc.user1_id !== state.user.id) userIds.push(pc.user1_id);
+            if (pc.user2_id !== state.user.id) userIds.push(pc.user2_id);
         });
-        userIds.push(state.user.id);
-        
-        const badgesMap = await loadUsersBadges(userIds);
+
+        // Загружаем значки
+        const badgesMap = await loadUsersBadges([...userIds, state.user.id]);
         state.usersBadges = badgesMap;
 
         state.chats = [];
 
-        personal.forEach(pc => {
-            const other = pc.user1_id === state.user.id ? pc.users2 : pc.users1;
-            const userBadges = badgesMap[other?.id] || [];
+        // Обрабатываем личные чаты
+        for (let pc of personal) {
+            const otherId = pc.user1_id === state.user.id ? pc.user2_id : pc.user1_id;
+            
+            // Получаем данные другого пользователя
+            const { data: userData, error: userErr } = await supabaseClient
+                .from('users')
+                .select('id, username, display_name')
+                .eq('id', otherId)
+                .single();
+
+            if (userErr) {
+                console.error('❌ Ошибка загрузки пользователя:', userErr);
+                continue;
+            }
+
+            const userBadges = badgesMap[otherId] || [];
             state.chats.push({
                 id: pc.id,
                 type: 'personal',
-                name: other?.display_name || other?.username || 'Unknown',
-                username: other?.username,
-                user_id: other?.id,
-                avatar: getInitials(other?.display_name || other?.username || '?'),
+                name: userData?.display_name || userData?.username || 'Unknown',
+                username: userData?.username,
+                user_id: otherId,
+                avatar: getInitials(userData?.display_name || userData?.username || '?'),
                 last_message: '',
                 last_message_time: '',
                 unread: 0,
                 badges: userBadges
             });
-        });
+        }
 
+        // Обрабатываем группы
         groups.forEach(g => {
             state.chats.push({
                 id: g.id,
@@ -1219,14 +1242,22 @@ async function loadChats() {
             });
         });
 
+        console.log('📊 Сформировано чатов:', state.chats.length);
+
+        // Загружаем последние сообщения
         for (let chat of state.chats) {
-            const { data: msgs } = await supabaseClient
+            const { data: msgs, error: msgsErr } = await supabaseClient
                 .from('messages')
                 .select('*')
                 .eq('chat_id', chat.id)
                 .eq('chat_type', chat.type)
                 .order('created_at', { ascending: false })
                 .limit(1);
+
+            if (msgsErr) {
+                console.error('❌ Ошибка загрузки сообщений:', msgsErr);
+                continue;
+            }
 
             if (msgs && msgs.length) {
                 const msg = msgs[0];
@@ -1236,7 +1267,7 @@ async function loadChats() {
                 chat.last_message_time = msg.created_at;
             }
 
-            const { count } = await supabaseClient
+            const { count, error: countErr } = await supabaseClient
                 .from('messages')
                 .select('*', { count: 'exact', head: true })
                 .eq('chat_id', chat.id)
@@ -1244,7 +1275,9 @@ async function loadChats() {
                 .eq('is_read', false)
                 .neq('sender_id', state.user.id);
 
-            chat.unread = count || 0;
+            if (!countErr) {
+                chat.unread = count || 0;
+            }
         }
 
         state.chats.sort((a, b) => {
@@ -1259,6 +1292,15 @@ async function loadChats() {
         console.log('✅ Загружено чатов:', state.chats.length);
     } catch (err) {
         console.error('❌ Ошибка загрузки чатов:', err);
+        // Показываем сообщение об ошибке в интерфейсе
+        chatList.innerHTML = `
+            <div style="text-align:center; padding:40px 20px; color:#ff3b30;">
+                <div style="font-size:40px; margin-bottom:10px;">⚠️</div>
+                <p>Ошибка загрузки чатов</p>
+                <p style="font-size:13px; color:#6c7a8a;">${err.message || 'Попробуйте перезагрузить страницу'}</p>
+                <button class="btn btn-sm" style="margin-top:12px; width:auto;" onclick="loadChats()">🔄 Обновить</button>
+            </div>
+        `;
     }
 }
 
@@ -1714,6 +1756,7 @@ async function searchUser() {
             return;
         }
 
+        // Проверяем, есть ли уже чат
         const { data: existing } = await supabaseClient
             .from('personal_chats')
             .select('id')
@@ -1723,6 +1766,7 @@ async function searchUser() {
 
         if (existing && existing.length) {
             searchResult.innerHTML = `✅ Уже есть чат с <strong>${data.display_name || data.username}</strong>`;
+            // Находим чат и открываем
             const chat = state.chats.find(c => c.type === 'personal' && c.user_id === data.id);
             if (chat) openChat(chat);
             return;
@@ -1744,8 +1788,6 @@ async function searchUser() {
 
         searchResult.innerHTML = `✅ Чат с <strong>${data.display_name || data.username}</strong> создан!`;
         loadChats();
-        const chat = state.chats.find(c => c.type === 'personal' && c.user_id === data.id);
-        if (chat) openChat(chat);
     } catch (err) {
         searchResult.textContent = 'Ошибка: ' + err.message;
     }
