@@ -1,0 +1,2192 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Rugrom</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        body {
+            background: #f0f8ff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            transition: background 0.3s;
+            overflow: hidden;
+        }
+        
+        #app {
+            width: 100%;
+            max-width: 430px;
+            height: 100vh;
+            max-height: 900px;
+            background: white;
+            box-shadow: 0 20px 60px rgba(0, 120, 255, 0.12);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            transition: background 0.3s, color 0.3s;
+        }
+        
+        body.dark #app {
+            background: #1a2332;
+            color: #e8edf3;
+        }
+        body.dark {
+            background: #0d1520;
+        }
+        
+        .screen {
+            display: none;
+            flex-direction: column;
+            height: 100%;
+            width: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            background: inherit;
+            overflow: hidden;
+        }
+        .screen.active {
+            display: flex;
+        }
+        
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 20px 12px;
+            border-bottom: 1px solid #e8f0f8;
+            flex-shrink: 0;
+            background: inherit;
+            z-index: 10;
+        }
+        body.dark .header {
+            border-bottom-color: #2a3a4a;
+        }
+        .header h2 {
+            font-size: 20px;
+            color: #007aff;
+            font-weight: 700;
+        }
+        body.dark .header h2 {
+            color: #5b9eff;
+        }
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .header-right {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        
+        .btn {
+            background: #007aff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 40px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+            touch-action: manipulation;
+            width: 100%;
+        }
+        .btn:active { transform: scale(0.97); }
+        .btn:hover { background: #005bbf; }
+        .btn-outline {
+            background: transparent;
+            border: 2px solid #007aff;
+            color: #007aff;
+        }
+        .btn-outline:hover { background: rgba(0,122,255,0.08); }
+        .btn-danger {
+            background: #ff3b30;
+        }
+        .btn-danger:hover { background: #d6302a; }
+        .btn-sm {
+            padding: 6px 14px;
+            font-size: 13px;
+            width: auto;
+        }
+        .btn-link {
+            background: none;
+            color: #007aff;
+            padding: 8px;
+            font-size: 14px;
+            width: auto;
+        }
+        .btn-link:hover {
+            text-decoration: underline;
+            background: none;
+        }
+        
+        input, textarea, select {
+            width: 100%;
+            padding: 14px 18px;
+            border: 2px solid #dce8f2;
+            border-radius: 40px;
+            font-size: 16px;
+            outline: none;
+            transition: 0.2s;
+            background: white;
+            color: #1a2332;
+        }
+        body.dark input, body.dark textarea, body.dark select {
+            background: #263445;
+            border-color: #3a4a5a;
+            color: #e8edf3;
+        }
+        input:focus, textarea:focus {
+            border-color: #007aff;
+            box-shadow: 0 0 0 3px rgba(0,122,255,0.15);
+        }
+        
+        #loginScreen {
+            justify-content: center;
+            padding: 40px 30px;
+            gap: 16px;
+        }
+        #loginScreen .logo {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        #loginScreen .logo h1 {
+            color: #007aff;
+            font-size: 48px;
+            font-weight: 800;
+        }
+        #loginScreen .logo p {
+            color: #6c7a8a;
+            font-size: 16px;
+            margin-top: 4px;
+        }
+        body.dark #loginScreen .logo p {
+            color: #8a9aaa;
+        }
+        #loginError, #registerError {
+            color: #ff3b30;
+            font-size: 14px;
+            text-align: center;
+            min-height: 24px;
+        }
+        .auth-switch {
+            text-align: center;
+            margin-top: 8px;
+        }
+        .auth-switch .btn-link {
+            font-size: 15px;
+            font-weight: 600;
+        }
+        .auth-form {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .auth-form.hidden {
+            display: none;
+        }
+        
+        .badge-container {
+            display: inline-flex;
+            gap: 4px;
+            margin-left: 4px;
+            align-items: center;
+        }
+        .badge-item {
+            display: inline-flex;
+            align-items: center;
+            gap: 2px;
+            padding: 1px 8px 1px 6px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            color: white;
+            line-height: 1.4;
+            cursor: default;
+            transition: transform 0.2s;
+            white-space: nowrap;
+        }
+        .badge-item:hover {
+            transform: scale(1.05);
+        }
+        .badge-item .badge-icon {
+            font-size: 12px;
+        }
+        .badge-creator { background: #34c759; }
+        .badge-official { background: #007aff; }
+        .badge-admin { background: #ff9500; }
+        .badge-vip { background: #ffd700; color: #1a2332; }
+        
+        .chat-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px 0;
+            -webkit-overflow-scrolling: touch;
+        }
+        .chat-item {
+            padding: 14px 16px;
+            border-bottom: 1px solid #eef4f8;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            transition: background 0.15s;
+            touch-action: manipulation;
+            position: relative;
+        }
+        body.dark .chat-item {
+            border-bottom-color: #2a3a4a;
+        }
+        .chat-item:active {
+            background: rgba(0,122,255,0.06);
+        }
+        body.dark .chat-item:active {
+            background: rgba(0,122,255,0.12);
+        }
+        .chat-avatar {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: #007aff;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 18px;
+            flex-shrink: 0;
+            position: relative;
+        }
+        .chat-avatar .badge-container {
+            position: absolute;
+            bottom: -4px;
+            right: -4px;
+            gap: 2px;
+        }
+        .chat-avatar .badge-item {
+            font-size: 9px;
+            padding: 0 6px 0 4px;
+            border: 2px solid white;
+        }
+        body.dark .chat-avatar .badge-item {
+            border-color: #1a2332;
+        }
+        .chat-info {
+            flex: 1;
+            min-width: 0;
+        }
+        .chat-name {
+            font-weight: 600;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            flex-wrap: wrap;
+        }
+        .chat-name .badge-item {
+            font-size: 9px;
+            padding: 0 6px 0 4px;
+        }
+        .chat-last-msg {
+            font-size: 14px;
+            color: #6c7a8a;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        body.dark .chat-last-msg {
+            color: #8a9aaa;
+        }
+        .chat-time {
+            font-size: 12px;
+            color: #8a9aaa;
+            flex-shrink: 0;
+        }
+        .chat-badge {
+            background: #007aff;
+            color: white;
+            border-radius: 50%;
+            padding: 2px 8px;
+            font-size: 12px;
+            font-weight: 600;
+            min-width: 20px;
+            text-align: center;
+        }
+        .chat-type-badge {
+            font-size: 10px;
+            background: #e8f0f8;
+            padding: 2px 8px;
+            border-radius: 12px;
+            color: #4a5a6a;
+        }
+        body.dark .chat-type-badge {
+            background: #2a3a4a;
+            color: #8a9aaa;
+        }
+        
+        .search-section {
+            padding: 8px 16px;
+            display: flex;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+        .search-section input {
+            flex: 1;
+        }
+        
+        .messages-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            -webkit-overflow-scrolling: touch;
+        }
+        .message {
+            max-width: 82%;
+            padding: 10px 14px;
+            border-radius: 20px;
+            background: #e8f0f8;
+            align-self: flex-start;
+            word-wrap: break-word;
+            position: relative;
+            animation: fadeIn 0.2s;
+        }
+        body.dark .message {
+            background: #2a3a4a;
+        }
+        .message.mine {
+            align-self: flex-end;
+            background: #007aff;
+            color: white;
+        }
+        .message .msg-text {
+            font-size: 15px;
+            line-height: 1.4;
+        }
+        .message .msg-meta {
+            font-size: 11px;
+            opacity: 0.6;
+            margin-top: 4px;
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            align-items: center;
+        }
+        .message.mine .msg-meta {
+            opacity: 0.8;
+        }
+        .message img, .message video {
+            max-width: 100%;
+            max-height: 250px;
+            border-radius: 12px;
+            margin-top: 4px;
+        }
+        .message audio {
+            width: 100%;
+            max-width: 220px;
+            margin-top: 4px;
+        }
+        .message .msg-actions {
+            display: flex;
+            gap: 6px;
+            margin-top: 4px;
+            flex-wrap: wrap;
+        }
+        .message .msg-actions button {
+            background: rgba(0,0,0,0.05);
+            border: none;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            cursor: pointer;
+            color: inherit;
+        }
+        body.dark .message .msg-actions button {
+            background: rgba(255,255,255,0.08);
+        }
+        .message .msg-actions button:active {
+            transform: scale(0.9);
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .input-area {
+            padding: 10px 16px;
+            border-top: 1px solid #e8f0f8;
+            flex-shrink: 0;
+            background: inherit;
+        }
+        body.dark .input-area {
+            border-top-color: #2a3a4a;
+        }
+        .input-row {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        .input-row input {
+            flex: 1;
+        }
+        .input-row .btn {
+            width: auto;
+            padding: 10px 16px;
+        }
+        .recording-indicator {
+            font-size: 12px;
+            color: #ff3b30;
+            padding: 4px 0;
+            text-align: center;
+        }
+        
+        .settings-group {
+            padding: 8px 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            flex: 1;
+            overflow-y: auto;
+        }
+        .settings-group label {
+            font-weight: 500;
+            font-size: 14px;
+            margin-bottom: 4px;
+            display: block;
+        }
+        .settings-group .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #eef4f8;
+            align-items: center;
+        }
+        body.dark .settings-group .info-row {
+            border-bottom-color: #2a3a4a;
+        }
+        .settings-group .info-row .label {
+            color: #6c7a8a;
+        }
+        body.dark .settings-group .info-row .label {
+            color: #8a9aaa;
+        }
+        
+        .search-msg-input {
+            padding: 4px 16px 8px;
+            flex-shrink: 0;
+        }
+        .search-msg-input input {
+            padding: 8px 16px;
+            font-size: 14px;
+        }
+        
+        .poll-overlay {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(0,0,0,0.5);
+            display: none;
+            justify-content: center;
+            align-items: flex-end;
+            z-index: 100;
+            height: 100%;
+        }
+        .poll-overlay.show {
+            display: flex;
+        }
+        .poll-card {
+            background: white;
+            border-radius: 24px 24px 0 0;
+            padding: 24px 20px 30px;
+            width: 100%;
+            max-width: 430px;
+            animation: slideUp 0.3s;
+        }
+        body.dark .poll-card {
+            background: #1a2332;
+        }
+        @keyframes slideUp {
+            from { transform: translateY(100%); }
+            to { transform: translateY(0); }
+        }
+        .poll-card h3 {
+            margin-bottom: 12px;
+            color: #007aff;
+        }
+        .poll-card label {
+            display: block;
+            padding: 10px 14px;
+            margin: 4px 0;
+            border-radius: 12px;
+            background: #f0f8ff;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        body.dark .poll-card label {
+            background: #263445;
+        }
+        .poll-card label:active {
+            transform: scale(0.98);
+        }
+        .poll-card label input {
+            margin-right: 10px;
+            width: auto;
+        }
+        .poll-card .poll-results {
+            margin-top: 12px;
+        }
+        .poll-card .poll-bar {
+            background: #e8f0f8;
+            border-radius: 20px;
+            height: 8px;
+            margin: 4px 0 8px;
+            overflow: hidden;
+        }
+        body.dark .poll-card .poll-bar {
+            background: #2a3a4a;
+        }
+        .poll-card .poll-bar .fill {
+            height: 100%;
+            background: #007aff;
+            border-radius: 20px;
+            transition: width 0.5s;
+        }
+        
+        ::-webkit-scrollbar {
+            width: 4px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #c0d0e0;
+            border-radius: 10px;
+        }
+        body.dark ::-webkit-scrollbar-thumb {
+            background: #3a4a5a;
+        }
+        
+        @media (max-width: 430px) {
+            #app {
+                max-height: 100vh;
+                border-radius: 0;
+                max-width: 100%;
+            }
+        }
+        @media (min-width: 431px) {
+            #app {
+                border-radius: 32px;
+                height: 90vh;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div id="app">
+    <!-- ===== ЛОГИН ===== -->
+    <div id="loginScreen" class="screen active">
+        <div class="logo">
+            <h1>💬 Rugrom</h1>
+            <p>Простой и безопасный мессенджер</p>
+        </div>
+        
+        <div id="loginForm" class="auth-form">
+            <input id="loginUsername" placeholder="@username" autocomplete="username" />
+            <input id="loginPassword" type="password" placeholder="Пароль" autocomplete="current-password" />
+            <button class="btn" id="loginBtn">Войти</button>
+            <div class="auth-switch">
+                <button class="btn-link" id="showRegisterBtn">Нет аккаунта? Зарегистрироваться</button>
+            </div>
+            <div id="loginError"></div>
+        </div>
+        
+        <div id="registerForm" class="auth-form hidden">
+            <input id="regUsername" placeholder="@username" autocomplete="username" />
+            <input id="regDisplayName" placeholder="Как вас называть?" autocomplete="name" />
+            <input id="regPassword" type="password" placeholder="Пароль" autocomplete="new-password" />
+            <button class="btn" id="registerBtn">Зарегистрироваться</button>
+            <div class="auth-switch">
+                <button class="btn-link" id="showLoginBtn">Уже есть аккаунт? Войти</button>
+            </div>
+            <div id="registerError"></div>
+        </div>
+    </div>
+
+    <!-- ===== ЧАТЫ ===== -->
+    <div id="chatsScreen" class="screen">
+        <div class="header">
+            <div class="header-left">
+                <h2>✉️ Чаты</h2>
+            </div>
+            <div class="header-right">
+                <button class="btn btn-sm btn-outline" id="settingsBtn">⚙️</button>
+                <button class="btn btn-sm btn-danger" id="logoutBtn">Выйти</button>
+            </div>
+        </div>
+        <div class="search-section">
+            <input id="searchUserInput" placeholder="Найти пользователя по @username" />
+            <button class="btn btn-sm" id="searchUserBtn">Найти</button>
+        </div>
+        <div id="searchResult" style="font-size:13px; padding:0 16px; min-height:24px;"></div>
+        <div style="padding:4px 16px 8px; display:flex; gap:8px; flex-shrink:0;">
+            <input id="groupNameInput" placeholder="Название группы" style="flex:1;" />
+            <button class="btn btn-sm" id="createGroupBtn">➕ Группа</button>
+        </div>
+        <div id="chatList" class="chat-list"></div>
+    </div>
+
+    <!-- ===== ЧАТ ===== -->
+    <div id="chatScreen" class="screen">
+        <div class="header">
+            <div class="header-left">
+                <button class="btn btn-sm btn-outline" id="backToChatsBtn" style="font-size:20px; width:auto; padding:4px 12px;">←</button>
+                <h2 id="chatTitle">Чат</h2>
+            </div>
+            <div class="header-right">
+                <button class="btn btn-sm btn-outline" id="searchMsgBtn">🔍</button>
+                <button class="btn btn-sm btn-outline" id="chatInfoBtn">ℹ️</button>
+            </div>
+        </div>
+        <div id="searchMsgContainer" class="search-msg-input" style="display:none;">
+            <input id="searchMsgInput" placeholder="Поиск по сообщениям..." />
+        </div>
+        <div id="messagesContainer" class="messages-container"></div>
+        <div class="input-area">
+            <div id="recordingStatus" class="recording-indicator"></div>
+            <div class="input-row">
+                <input id="messageInput" placeholder="Сообщение..." />
+                <button class="btn btn-sm" id="sendTextBtn">📤</button>
+                <button class="btn btn-sm btn-outline" id="audioRecordBtn">🎤</button>
+                <button class="btn btn-sm btn-outline" id="fileUploadBtn">📎</button>
+                <input type="file" id="fileInput" accept="image/*,video/*,audio/*" style="display:none" multiple />
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== НАСТРОЙКИ ===== -->
+    <div id="settingsScreen" class="screen">
+        <div class="header">
+            <div class="header-left">
+                <button class="btn btn-sm btn-outline" id="backFromSettingsBtn" style="font-size:20px; width:auto; padding:4px 12px;">←</button>
+                <h2>⚙️ Настройки</h2>
+            </div>
+        </div>
+        <div class="settings-group">
+            <div>
+                <label>Отображаемое имя</label>
+                <input id="displayNameInput" placeholder="Ваше имя" />
+                <button class="btn btn-sm" id="updateDisplayNameBtn" style="margin-top:8px; width:auto;">Обновить</button>
+            </div>
+            <div>
+                <label>Тема оформления</label>
+                <select id="themeSelect">
+                    <option value="light">Светлая</option>
+                    <option value="dark">Тёмная</option>
+                </select>
+            </div>
+            <div class="info-row">
+                <span class="label">@username</span>
+                <span id="settingsUsername"></span>
+            </div>
+            <div class="info-row">
+                <span class="label">ID пользователя</span>
+                <span id="settingsUserId"></span>
+            </div>
+            <div class="info-row">
+                <span class="label">Всего чатов</span>
+                <span id="settingsChatsCount">0</span>
+            </div>
+            <button class="btn btn-danger" id="deleteAccountBtn">🗑 Удалить аккаунт</button>
+            <button class="btn btn-outline" id="showPollBtn">📊 Пройти опрос</button>
+        </div>
+    </div>
+
+    <!-- ===== ОПРОС ===== -->
+    <div id="pollOverlay" class="poll-overlay">
+        <div class="poll-card">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <h3>📊 Опрос Rugrom</h3>
+                <button class="btn btn-sm btn-outline" id="closePollBtn" style="width:auto;">✕</button>
+            </div>
+            <p style="color:#6c7a8a; margin-bottom:12px;">Помогите сделать мессенджер лучше!</p>
+            <div id="pollQuestions">
+                <label><input type="radio" name="poll_q1" value="web" /> Веб-версия (браузер)</label>
+                <label><input type="radio" name="poll_q1" value="mobile" /> Мобильное приложение</label>
+                <label><input type="radio" name="poll_q1" value="both" /> И то, и другое</label>
+                <br>
+                <label><input type="radio" name="poll_q2" value="simple" /> Простой интерфейс</label>
+                <label><input type="radio" name="poll_q2" value="feature" /> Много функций</label>
+                <label><input type="radio" name="poll_q2" value="custom" /> Кастомизация</label>
+                <br>
+                <label><input type="radio" name="poll_q3" value="speed" /> Скорость работы</label>
+                <label><input type="radio" name="poll_q3" value="design" /> Красивый дизайн</label>
+                <label><input type="radio" name="poll_q3" value="secure" /> Безопасность</label>
+            </div>
+            <button class="btn" id="submitPollBtn" style="margin-top:12px;">Отправить ответы</button>
+            <div id="pollResults" style="margin-top:12px; display:none;">
+                <p><strong>Результаты опроса:</strong></p>
+                <div id="pollResultContent"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// ============================================================
+// 1. SUPABASE + КОНФИГУРАЦИЯ
+// ============================================================
+const SUPABASE_URL = 'https://vbkshrdoekmaufinsveg.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZia3NocmRvZWttYXVmaW5zdmVnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMDE0NDksImV4cCI6MjA5Nzg3NzQ0OX0.9Cpt0eyo1UclIb70iRTeMmQUF1nzWKpUPsJiLwYCfbI';
+const ENCRYPTION_KEY = 'RugromSecretKey2024!@#';
+
+console.log('🔌 Подключение к Supabase...');
+// Используем другое имя переменной, чтобы избежать конфликта
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+console.log('✅ Supabase подключен');
+
+// ============================================================
+// 2. СОСТОЯНИЕ
+// ============================================================
+const state = {
+    user: null,
+    currentChat: null,
+    chats: [],
+    messages: [],
+    pollingInterval: null,
+    isRecording: false,
+    mediaRecorder: null,
+    audioChunks: [],
+    darkMode: false,
+    userBadges: [],
+    usersBadges: {},
+};
+
+// ============================================================
+// 3. ШИФРОВАНИЕ
+// ============================================================
+async function encryptText(text) {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(text);
+    const key = await crypto.subtle.importKey(
+        'raw',
+        encoder.encode(ENCRYPTION_KEY.padEnd(32, ' ')),
+        { name: 'AES-GCM' },
+        false,
+        ['encrypt']
+    );
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const encrypted = await crypto.subtle.encrypt(
+        { name: 'AES-GCM', iv },
+        key,
+        data
+    );
+    const combined = new Uint8Array(iv.length + encrypted.byteLength);
+    combined.set(iv);
+    combined.set(new Uint8Array(encrypted), iv.length);
+    return btoa(String.fromCharCode(...combined));
+}
+
+async function decryptText(encoded) {
+    try {
+        const combined = Uint8Array.from(atob(encoded), c => c.charCodeAt(0));
+        const iv = combined.slice(0, 12);
+        const data = combined.slice(12);
+        const key = await crypto.subtle.importKey(
+            'raw',
+            new TextEncoder().encode(ENCRYPTION_KEY.padEnd(32, ' ')),
+            { name: 'AES-GCM' },
+            false,
+            ['decrypt']
+        );
+        const decrypted = await crypto.subtle.decrypt(
+            { name: 'AES-GCM', iv },
+            key,
+            data
+        );
+        return new TextDecoder().decode(decrypted);
+    } catch {
+        return encoded;
+    }
+}
+
+// ============================================================
+// 4. БЭДЖИ
+// ============================================================
+const BADGE_DEFINITIONS = {
+    creator: { name: 'Создатель', icon: '🔨', color: '#34c759', cssClass: 'badge-creator' },
+    official: { name: 'Официальный', icon: '✓', color: '#007aff', cssClass: 'badge-official' },
+    admin: { name: 'Администратор', icon: '⚡', color: '#ff9500', cssClass: 'badge-admin' },
+    vip: { name: 'VIP', icon: '⭐', color: '#ffd700', cssClass: 'badge-vip' },
+};
+
+function renderBadgesMini(badges) {
+    if (!badges || !badges.length) return '';
+    return badges.map(b => {
+        const def = BADGE_DEFINITIONS[b.badge_type] || BADGE_DEFINITIONS.vip;
+        return `<span class="badge-item ${def.cssClass}" title="${def.name}">
+            <span class="badge-icon">${def.icon}</span>
+        </span>`;
+    }).join('');
+}
+
+async function loadUserBadges(userId) {
+    try {
+        const { data, error } = await supabaseClient
+            .from('verification_badges')
+            .select('*')
+            .eq('user_id', userId)
+            .eq('is_active', true);
+        if (error) throw error;
+        return data || [];
+    } catch (err) {
+        console.error('Load badges error:', err);
+        return [];
+    }
+}
+
+async function loadUsersBadges(userIds) {
+    if (!userIds.length) return {};
+    try {
+        const { data, error } = await supabaseClient
+            .from('verification_badges')
+            .select('*')
+            .in('user_id', userIds)
+            .eq('is_active', true);
+        if (error) throw error;
+        const result = {};
+        (data || []).forEach(b => {
+            if (!result[b.user_id]) result[b.user_id] = [];
+            result[b.user_id].push(b);
+        });
+        return result;
+    } catch (err) {
+        console.error('Load users badges error:', err);
+        return {};
+    }
+}
+
+// ============================================================
+// 5. DOM REFS
+// ============================================================
+const $ = id => document.getElementById(id);
+
+const loginScreen = $('loginScreen');
+const chatsScreen = $('chatsScreen');
+const chatScreen = $('chatScreen');
+const settingsScreen = $('settingsScreen');
+const pollOverlay = $('pollOverlay');
+
+const loginForm = $('loginForm');
+const registerForm = $('registerForm');
+const loginUsername = $('loginUsername');
+const loginPassword = $('loginPassword');
+const loginBtn = $('loginBtn');
+const loginError = $('loginError');
+const showRegisterBtn = $('showRegisterBtn');
+
+const regUsername = $('regUsername');
+const regDisplayName = $('regDisplayName');
+const regPassword = $('regPassword');
+const registerBtn = $('registerBtn');
+const registerError = $('registerError');
+const showLoginBtn = $('showLoginBtn');
+
+const chatList = $('chatList');
+const searchUserInput = $('searchUserInput');
+const searchUserBtn = $('searchUserBtn');
+const searchResult = $('searchResult');
+const groupNameInput = $('groupNameInput');
+const createGroupBtn = $('createGroupBtn');
+
+const chatTitle = $('chatTitle');
+const messagesContainer = $('messagesContainer');
+const messageInput = $('messageInput');
+const sendTextBtn = $('sendTextBtn');
+const audioRecordBtn = $('audioRecordBtn');
+const fileUploadBtn = $('fileUploadBtn');
+const fileInput = $('fileInput');
+const recordingStatus = $('recordingStatus');
+const backToChatsBtn = $('backToChatsBtn');
+const searchMsgBtn = $('searchMsgBtn');
+const searchMsgContainer = $('searchMsgContainer');
+const searchMsgInput = $('searchMsgInput');
+const chatInfoBtn = $('chatInfoBtn');
+
+const settingsBtn = $('settingsBtn');
+const logoutBtn = $('logoutBtn');
+const backFromSettingsBtn = $('backFromSettingsBtn');
+const displayNameInput = $('displayNameInput');
+const updateDisplayNameBtn = $('updateDisplayNameBtn');
+const themeSelect = $('themeSelect');
+const settingsUsername = $('settingsUsername');
+const settingsUserId = $('settingsUserId');
+const settingsChatsCount = $('settingsChatsCount');
+const deleteAccountBtn = $('deleteAccountBtn');
+const showPollBtn = $('showPollBtn');
+
+const pollQuestions = $('pollQuestions');
+const submitPollBtn = $('submitPollBtn');
+const pollResults = $('pollResults');
+const pollResultContent = $('pollResultContent');
+const closePollBtn = $('closePollBtn');
+
+// ============================================================
+// 6. УТИЛИТЫ
+// ============================================================
+function formatTime(date) {
+    const d = new Date(date);
+    return d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+}
+
+function formatDate(date) {
+    const d = new Date(date);
+    const now = new Date();
+    if (d.toDateString() === now.toDateString()) return 'Сегодня';
+    if (d.toDateString() === new Date(now - 86400000).toDateString()) return 'Вчера';
+    return d.toLocaleDateString('ru-RU');
+}
+
+function getInitials(name) {
+    if (!name) return '?';
+    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+}
+
+function showScreen(screen) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    screen.classList.add('active');
+}
+
+function showLoginError(msg) {
+    loginError.textContent = msg;
+    setTimeout(() => loginError.textContent = '', 4000);
+}
+
+function showRegisterError(msg) {
+    registerError.textContent = msg;
+    setTimeout(() => registerError.textContent = '', 4000);
+}
+
+// ============================================================
+// 7. АУТЕНТИФИКАЦИЯ
+// ============================================================
+async function register() {
+    const username = regUsername.value.trim();
+    const displayName = regDisplayName.value.trim() || username;
+    const password = regPassword.value;
+
+    if (!username || !password) {
+        showRegisterError('Заполните @username и пароль');
+        return;
+    }
+    if (!username.startsWith('@')) {
+        showRegisterError('@username должен начинаться с @');
+        return;
+    }
+    if (password.length < 4) {
+        showRegisterError('Пароль должен быть минимум 4 символа');
+        return;
+    }
+
+    try {
+        console.log('📝 Регистрация пользователя:', username);
+        
+        const { data: existing } = await supabaseClient
+            .from('users')
+            .select('id')
+            .eq('username', username)
+            .single();
+
+        if (existing) {
+            showRegisterError('Пользователь с таким @username уже существует');
+            return;
+        }
+
+        const { data, error } = await supabaseClient
+            .from('users')
+            .insert([
+                { 
+                    username, 
+                    display_name: displayName,
+                    password: btoa(password + 'salt'),
+                    created_at: new Date().toISOString()
+                }
+            ])
+            .select()
+            .single();
+
+        if (error) {
+            console.error('❌ Ошибка регистрации:', error);
+            showRegisterError('Ошибка: ' + error.message);
+            return;
+        }
+        
+        console.log('✅ Пользователь зарегистрирован:', data);
+        
+        state.user = data;
+        localStorage.setItem('rugrom_user', JSON.stringify(data));
+        
+        state.userBadges = await loadUserBadges(data.id);
+        
+        showScreen(chatsScreen);
+        loadChats();
+        updateSettingsInfo();
+        registerError.textContent = '✅ Регистрация успешна!';
+        setTimeout(() => registerError.textContent = '', 3000);
+    } catch (err) {
+        console.error('❌ Ошибка:', err);
+        showRegisterError('Ошибка: ' + err.message);
+    }
+}
+
+async function login() {
+    const username = loginUsername.value.trim();
+    const password = loginPassword.value;
+
+    if (!username || !password) {
+        showLoginError('Введите @username и пароль');
+        return;
+    }
+
+    try {
+        console.log('🔑 Вход пользователя:', username);
+        
+        const { data, error } = await supabaseClient
+            .from('users')
+            .select('*')
+            .eq('username', username)
+            .eq('password', btoa(password + 'salt'))
+            .single();
+
+        if (error || !data) {
+            console.error('❌ Ошибка входа:', error);
+            showLoginError('Неверный @username или пароль');
+            return;
+        }
+
+        console.log('✅ Пользователь вошёл:', data);
+        
+        state.user = data;
+        localStorage.setItem('rugrom_user', JSON.stringify(data));
+        
+        state.userBadges = await loadUserBadges(data.id);
+        
+        showScreen(chatsScreen);
+        loadChats();
+        updateSettingsInfo();
+        loginError.textContent = '';
+    } catch (err) {
+        console.error('❌ Ошибка:', err);
+        showLoginError('Ошибка: ' + err.message);
+    }
+}
+
+function logout() {
+    console.log('🚪 Выход из аккаунта');
+    state.user = null;
+    state.userBadges = [];
+    localStorage.removeItem('rugrom_user');
+    if (state.pollingInterval) clearInterval(state.pollingInterval);
+    showScreen(loginScreen);
+    loginPassword.value = '';
+    loginError.textContent = '';
+    loginForm.classList.remove('hidden');
+    registerForm.classList.add('hidden');
+}
+
+// ============================================================
+// 8. ПЕРЕКЛЮЧЕНИЕ ФОРМ
+// ============================================================
+showRegisterBtn.addEventListener('click', () => {
+    loginForm.classList.add('hidden');
+    registerForm.classList.remove('hidden');
+    loginError.textContent = '';
+    registerError.textContent = '';
+});
+
+showLoginBtn.addEventListener('click', () => {
+    registerForm.classList.add('hidden');
+    loginForm.classList.remove('hidden');
+    loginError.textContent = '';
+    registerError.textContent = '';
+});
+
+// ============================================================
+// 9. ЗАГРУЗКА ЧАТОВ
+// ============================================================
+async function loadChats() {
+    if (!state.user) {
+        console.log('⚠️ Пользователь не авторизован');
+        return;
+    }
+
+    try {
+        console.log('📂 Загрузка чатов...');
+        
+        const { data: personal, error: pErr } = await supabaseClient
+            .from('personal_chats')
+            .select(`
+                id,
+                user1_id,
+                user2_id,
+                users!personal_chats_user1_id_fkey (id, username, display_name),
+                users!personal_chats_user2_id_fkey (id, username, display_name)
+            `)
+            .or(`user1_id.eq.${state.user.id},user2_id.eq.${state.user.id}`);
+
+        if (pErr) throw pErr;
+
+        const { data: groupMembers, error: gErr } = await supabaseClient
+            .from('group_members')
+            .select(`
+                group_id,
+                groups!inner (id, name, created_by)
+            `)
+            .eq('user_id', state.user.id);
+
+        if (gErr) throw gErr;
+
+        const groupIds = groupMembers.map(gm => gm.group_id);
+        let groups = [];
+        if (groupIds.length) {
+            const { data: gData } = await supabaseClient
+                .from('groups')
+                .select('*')
+                .in('id', groupIds);
+            groups = gData || [];
+        }
+
+        const userIds = [];
+        personal.forEach(pc => {
+            const other = pc.user1_id === state.user.id ? pc.users2 : pc.users1;
+            if (other?.id) userIds.push(other.id);
+        });
+        userIds.push(state.user.id);
+        
+        const badgesMap = await loadUsersBadges(userIds);
+        state.usersBadges = badgesMap;
+
+        state.chats = [];
+
+        personal.forEach(pc => {
+            const other = pc.user1_id === state.user.id ? pc.users2 : pc.users1;
+            const userBadges = badgesMap[other?.id] || [];
+            state.chats.push({
+                id: pc.id,
+                type: 'personal',
+                name: other?.display_name || other?.username || 'Unknown',
+                username: other?.username,
+                user_id: other?.id,
+                avatar: getInitials(other?.display_name || other?.username || '?'),
+                last_message: '',
+                last_message_time: '',
+                unread: 0,
+                badges: userBadges
+            });
+        });
+
+        groups.forEach(g => {
+            state.chats.push({
+                id: g.id,
+                type: 'group',
+                name: g.name || 'Группа',
+                avatar: '👥',
+                last_message: '',
+                last_message_time: '',
+                unread: 0,
+                created_by: g.created_by,
+                badges: []
+            });
+        });
+
+        for (let chat of state.chats) {
+            const { data: msgs } = await supabaseClient
+                .from('messages')
+                .select('*')
+                .eq('chat_id', chat.id)
+                .eq('chat_type', chat.type)
+                .order('created_at', { ascending: false })
+                .limit(1);
+
+            if (msgs && msgs.length) {
+                const msg = msgs[0];
+                chat.last_message = msg.content_type === 'text' 
+                    ? await decryptText(msg.content) 
+                    : `[${msg.content_type}]`;
+                chat.last_message_time = msg.created_at;
+            }
+
+            const { count } = await supabaseClient
+                .from('messages')
+                .select('*', { count: 'exact', head: true })
+                .eq('chat_id', chat.id)
+                .eq('chat_type', chat.type)
+                .eq('is_read', false)
+                .neq('sender_id', state.user.id);
+
+            chat.unread = count || 0;
+        }
+
+        state.chats.sort((a, b) => {
+            if (!a.last_message_time) return 1;
+            if (!b.last_message_time) return -1;
+            return new Date(b.last_message_time) - new Date(a.last_message_time);
+        });
+
+        renderChats();
+        updateSettingsInfo();
+        startPolling();
+        console.log('✅ Загружено чатов:', state.chats.length);
+    } catch (err) {
+        console.error('❌ Ошибка загрузки чатов:', err);
+    }
+}
+
+function renderChats() {
+    if (!state.chats.length) {
+        chatList.innerHTML = `
+            <div style="text-align:center; padding:40px 20px; color:#6c7a8a;">
+                <div style="font-size:40px; margin-bottom:10px;">💬</div>
+                <p>Нет чатов</p>
+                <p style="font-size:13px;">Найдите пользователя или создайте группу</p>
+            </div>
+        `;
+        return;
+    }
+
+    chatList.innerHTML = state.chats.map(chat => `
+        <div class="chat-item" data-chat-id="${chat.id}" data-chat-type="${chat.type}">
+            <div class="chat-avatar">
+                ${chat.avatar}
+                ${chat.badges?.length ? `<div class="badge-container">${renderBadgesMini(chat.badges)}</div>` : ''}
+            </div>
+            <div class="chat-info">
+                <div class="chat-name">
+                    ${chat.name}
+                    ${chat.badges?.length ? renderBadgesMini(chat.badges) : ''}
+                </div>
+                <div class="chat-last-msg">${chat.last_message || 'Нет сообщений'}</div>
+            </div>
+            <div style="text-align:right; flex-shrink:0;">
+                <div class="chat-time">${chat.last_message_time ? formatTime(chat.last_message_time) : ''}</div>
+                ${chat.unread > 0 ? `<div class="chat-badge">${chat.unread}</div>` : ''}
+                <div class="chat-type-badge">${chat.type === 'personal' ? '👤' : '👥'}</div>
+            </div>
+        </div>
+    `).join('');
+
+    document.querySelectorAll('.chat-item').forEach(el => {
+        el.addEventListener('click', () => {
+            const id = el.dataset.chatId;
+            const type = el.dataset.chatType;
+            const chat = state.chats.find(c => c.id === id && c.type === type);
+            if (chat) openChat(chat);
+        });
+    });
+}
+
+// ============================================================
+// 10. ОТКРЫТИЕ ЧАТА
+// ============================================================
+async function openChat(chat) {
+    state.currentChat = chat;
+    chatTitle.textContent = chat.name;
+    showScreen(chatScreen);
+    
+    searchMsgContainer.style.display = 'none';
+    searchMsgInput.value = '';
+    
+    await loadMessages(chat.id, chat.type);
+    scrollToBottom();
+    
+    await supabaseClient
+        .from('messages')
+        .update({ is_read: true })
+        .eq('chat_id', chat.id)
+        .eq('chat_type', chat.type)
+        .neq('sender_id', state.user.id);
+    
+    chat.unread = 0;
+    renderChats();
+}
+
+async function loadMessages(chatId, chatType, searchTerm = '') {
+    try {
+        let query = supabaseClient
+            .from('messages')
+            .select('*')
+            .eq('chat_id', chatId)
+            .eq('chat_type', chatType)
+            .order('created_at', { ascending: true });
+
+        if (searchTerm) {
+            const { data: all } = await query;
+            const filtered = [];
+            for (let msg of all || []) {
+                if (msg.content_type === 'text') {
+                    const decrypted = await decryptText(msg.content);
+                    if (decrypted.toLowerCase().includes(searchTerm.toLowerCase())) {
+                        filtered.push(msg);
+                    }
+                }
+            }
+            renderMessages(filtered);
+            return;
+        }
+
+        const { data, error } = await query;
+        if (error) throw error;
+        
+        state.messages = data || [];
+        
+        const senderIds = [...new Set(state.messages.map(m => m.sender_id))];
+        const badgesMap = await loadUsersBadges(senderIds);
+        Object.assign(state.usersBadges, badgesMap);
+        
+        renderMessages(state.messages);
+    } catch (err) {
+        console.error('Load messages error:', err);
+    }
+}
+
+function renderMessages(messages) {
+    if (!messages.length) {
+        messagesContainer.innerHTML = `
+            <div style="text-align:center; padding:40px 20px; color:#6c7a8a;">
+                <div style="font-size:40px; margin-bottom:10px;">💭</div>
+                <p>Нет сообщений</p>
+                <p style="font-size:13px;">Напишите что-нибудь!</p>
+            </div>
+        `;
+        return;
+    }
+
+    let html = '';
+    let lastDate = '';
+
+    messages.forEach(async (msg) => {
+        const isMine = msg.sender_id === state.user.id;
+        const date = new Date(msg.created_at);
+        const dateStr = formatDate(msg.created_at);
+        
+        if (dateStr !== lastDate) {
+            html += `<div style="text-align:center; color:#6c7a8a; font-size:12px; padding:8px 0;">${dateStr}</div>`;
+            lastDate = dateStr;
+        }
+
+        let content = '';
+        if (msg.content_type === 'text') {
+            const decrypted = await decryptText(msg.content);
+            content = `<div class="msg-text">${decrypted}</div>`;
+        } else if (msg.content_type === 'image') {
+            content = `<img src="${msg.content}" alt="image" loading="lazy" />`;
+        } else if (msg.content_type === 'video') {
+            content = `<video controls src="${msg.content}" style="max-width:100%;"></video>`;
+        } else if (msg.content_type === 'audio') {
+            content = `<audio controls src="${msg.content}"></audio>`;
+        } else {
+            content = `<div class="msg-text">[${msg.content_type}]</div>`;
+        }
+
+        let senderName = '';
+        let senderBadges = [];
+        if (!isMine) {
+            const chat = state.chats.find(c => c.id === state.currentChat?.id);
+            if (chat?.type === 'personal') {
+                senderName = chat.name;
+                senderBadges = chat.badges || [];
+            } else {
+                const { data: userData } = await supabaseClient
+                    .from('users')
+                    .select('display_name, username')
+                    .eq('id', msg.sender_id)
+                    .single();
+                senderName = userData?.display_name || userData?.username || 'User';
+                senderBadges = state.usersBadges[msg.sender_id] || [];
+            }
+        }
+
+        const actions = `
+            <div class="msg-actions">
+                ${isMine ? `
+                    <button onclick="editMessage('${msg.id}')">✏️</button>
+                    <button onclick="deleteMessage('${msg.id}')">🗑</button>
+                ` : ''}
+            </div>
+        `;
+
+        const senderDisplay = !isMine ? `
+            <div class="sender-name">
+                ${senderName}
+                ${senderBadges.length ? renderBadgesMini(senderBadges) : ''}
+            </div>
+        ` : '';
+
+        html += `
+            <div class="message ${isMine ? 'mine' : ''}" id="msg-${msg.id}">
+                ${senderDisplay}
+                ${content}
+                <div class="msg-meta">
+                    <span>${formatTime(msg.created_at)}</span>
+                    ${msg.is_edited ? '✎' : ''}
+                </div>
+                ${actions}
+            </div>
+        `;
+    });
+
+    messagesContainer.innerHTML = html;
+    scrollToBottom();
+}
+
+function scrollToBottom() {
+    setTimeout(() => {
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }, 100);
+}
+
+// ============================================================
+// 11. ОТПРАВКА СООБЩЕНИЙ
+// ============================================================
+async function sendMessage(content, contentType = 'text') {
+    if (!state.currentChat) return;
+    if (!content && contentType === 'text') return;
+
+    try {
+        let encryptedContent = content;
+        if (contentType === 'text') {
+            encryptedContent = await encryptText(content);
+        }
+
+        const { data, error } = await supabaseClient
+            .from('messages')
+            .insert([
+                {
+                    chat_id: state.currentChat.id,
+                    chat_type: state.currentChat.type,
+                    sender_id: state.user.id,
+                    content: encryptedContent,
+                    content_type: contentType,
+                    created_at: new Date().toISOString(),
+                    is_read: false,
+                    is_edited: false
+                }
+            ])
+            .select()
+            .single();
+
+        if (error) throw error;
+        
+        state.messages.push(data);
+        renderMessages(state.messages);
+        
+        const chat = state.chats.find(c => c.id === state.currentChat.id && c.type === state.currentChat.type);
+        if (chat) {
+            chat.last_message = contentType === 'text' ? content : `[${contentType}]`;
+            chat.last_message_time = data.created_at;
+            renderChats();
+        }
+
+        scrollToBottom();
+        messageInput.value = '';
+        messageInput.focus();
+    } catch (err) {
+        console.error('Send message error:', err);
+        alert('Ошибка отправки: ' + err.message);
+    }
+}
+
+// ============================================================
+// 12. ФАЙЛЫ И АУДИО
+// ============================================================
+async function handleFileUpload(files) {
+    if (!state.currentChat) return;
+
+    for (const file of files) {
+        try {
+            let contentType = 'file';
+            if (file.type.startsWith('image/')) contentType = 'image';
+            else if (file.type.startsWith('video/')) contentType = 'video';
+            else if (file.type.startsWith('audio/')) contentType = 'audio';
+
+            if (file.size < 100 * 1024) {
+                const reader = new FileReader();
+                reader.onload = async (e) => {
+                    const base64 = e.target.result;
+                    await sendMessage(base64, contentType);
+                };
+                reader.readAsDataURL(file);
+                continue;
+            }
+
+            const fileExt = file.name.split('.').pop();
+            const fileName = `${state.user.id}/${Date.now()}.${fileExt}`;
+            
+            const { data, error } = await supabaseClient.storage
+                .from('rugrom_files')
+                .upload(fileName, file);
+
+            if (error) throw error;
+
+            const { data: urlData } = supabaseClient.storage
+                .from('rugrom_files')
+                .getPublicUrl(fileName);
+
+            await sendMessage(urlData.publicUrl, contentType);
+        } catch (err) {
+            console.error('File upload error:', err);
+            alert('Ошибка загрузки файла: ' + err.message);
+        }
+    }
+}
+
+async function startRecording() {
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        state.mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm;codecs=opus' });
+        state.audioChunks = [];
+
+        state.mediaRecorder.ondataavailable = (e) => {
+            if (e.data.size > 0) state.audioChunks.push(e.data);
+        };
+
+        state.mediaRecorder.onstop = async () => {
+            const blob = new Blob(state.audioChunks, { type: 'audio/webm' });
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                const base64 = e.target.result;
+                await sendMessage(base64, 'audio');
+            };
+            reader.readAsDataURL(blob);
+            
+            stream.getTracks().forEach(track => track.stop());
+            recordingStatus.textContent = '';
+            audioRecordBtn.textContent = '🎤';
+            state.isRecording = false;
+        };
+
+        state.mediaRecorder.start();
+        state.isRecording = true;
+        audioRecordBtn.textContent = '⏹';
+        recordingStatus.textContent = '🔴 Запись... Нажмите ещё раз для остановки';
+    } catch (err) {
+        alert('Нет доступа к микрофону: ' + err.message);
+    }
+}
+
+function stopRecording() {
+    if (state.mediaRecorder && state.isRecording) {
+        state.mediaRecorder.stop();
+    }
+}
+
+// ============================================================
+// 13. РЕДАКТИРОВАНИЕ / УДАЛЕНИЕ
+// ============================================================
+window.editMessage = async function(messageId) {
+    const newText = prompt('Редактировать сообщение:');
+    if (newText === null) return;
+    if (!newText.trim()) {
+        alert('Сообщение не может быть пустым');
+        return;
+    }
+
+    try {
+        const encrypted = await encryptText(newText.trim());
+        const { error } = await supabaseClient
+            .from('messages')
+            .update({ content: encrypted, is_edited: true })
+            .eq('id', messageId);
+
+        if (error) throw error;
+        
+        const msg = state.messages.find(m => m.id === messageId);
+        if (msg) {
+            msg.content = encrypted;
+            msg.is_edited = true;
+            renderMessages(state.messages);
+        }
+    } catch (err) {
+        alert('Ошибка редактирования: ' + err.message);
+    }
+};
+
+window.deleteMessage = async function(messageId) {
+    if (!confirm('Удалить сообщение?')) return;
+
+    try {
+        const { error } = await supabaseClient
+            .from('messages')
+            .delete()
+            .eq('id', messageId);
+
+        if (error) throw error;
+        
+        state.messages = state.messages.filter(m => m.id !== messageId);
+        renderMessages(state.messages);
+        loadChats();
+    } catch (err) {
+        alert('Ошибка удаления: ' + err.message);
+    }
+};
+
+// ============================================================
+// 14. ГРУППЫ И ПОИСК
+// ============================================================
+async function createGroup() {
+    const name = groupNameInput.value.trim();
+    if (!name) {
+        alert('Введите название группы');
+        return;
+    }
+
+    try {
+        const { data: group, error } = await supabaseClient
+            .from('groups')
+            .insert([
+                {
+                    name: name,
+                    created_by: state.user.id,
+                    created_at: new Date().toISOString()
+                }
+            ])
+            .select()
+            .single();
+
+        if (error) throw error;
+
+        await supabaseClient
+            .from('group_members')
+            .insert([
+                {
+                    group_id: group.id,
+                    user_id: state.user.id,
+                    role: 'admin',
+                    joined_at: new Date().toISOString()
+                }
+            ]);
+
+        groupNameInput.value = '';
+        loadChats();
+        alert('✅ Группа создана!');
+    } catch (err) {
+        alert('Ошибка: ' + err.message);
+    }
+}
+
+async function searchUser() {
+    const query = searchUserInput.value.trim();
+    if (!query) {
+        searchResult.textContent = 'Введите @username для поиска';
+        return;
+    }
+
+    try {
+        const { data, error } = await supabaseClient
+            .from('users')
+            .select('id, username, display_name')
+            .eq('username', query)
+            .neq('id', state.user.id)
+            .single();
+
+        if (error || !data) {
+            searchResult.textContent = '❌ Пользователь не найден';
+            return;
+        }
+
+        const { data: existing } = await supabaseClient
+            .from('personal_chats')
+            .select('id')
+            .or(`user1_id.eq.${state.user.id},user2_id.eq.${state.user.id}`)
+            .or(`user1_id.eq.${data.id},user2_id.eq.${data.id}`)
+            .limit(1);
+
+        if (existing && existing.length) {
+            searchResult.innerHTML = `✅ Уже есть чат с <strong>${data.display_name || data.username}</strong>`;
+            const chat = state.chats.find(c => c.type === 'personal' && c.user_id === data.id);
+            if (chat) openChat(chat);
+            return;
+        }
+
+        const { data: newChat, error: chatErr } = await supabaseClient
+            .from('personal_chats')
+            .insert([
+                {
+                    user1_id: state.user.id,
+                    user2_id: data.id,
+                    created_at: new Date().toISOString()
+                }
+            ])
+            .select()
+            .single();
+
+        if (chatErr) throw chatErr;
+
+        searchResult.innerHTML = `✅ Чат с <strong>${data.display_name || data.username}</strong> создан!`;
+        loadChats();
+        const chat = state.chats.find(c => c.type === 'personal' && c.user_id === data.id);
+        if (chat) openChat(chat);
+    } catch (err) {
+        searchResult.textContent = 'Ошибка: ' + err.message;
+    }
+}
+
+// ============================================================
+// 15. НАСТРОЙКИ
+// ============================================================
+async function updateDisplayName() {
+    const name = displayNameInput.value.trim();
+    if (!name) {
+        alert('Введите имя');
+        return;
+    }
+
+    try {
+        const { error } = await supabaseClient
+            .from('users')
+            .update({ display_name: name })
+            .eq('id', state.user.id);
+
+        if (error) throw error;
+        
+        state.user.display_name = name;
+        localStorage.setItem('rugrom_user', JSON.stringify(state.user));
+        alert('✅ Имя обновлено!');
+        loadChats();
+        updateSettingsInfo();
+    } catch (err) {
+        alert('Ошибка: ' + err.message);
+    }
+}
+
+function updateSettingsInfo() {
+    if (state.user) {
+        settingsUsername.textContent = state.user.username;
+        settingsUserId.textContent = state.user.id;
+        displayNameInput.value = state.user.display_name || '';
+        settingsChatsCount.textContent = state.chats.length;
+    }
+}
+
+function toggleTheme(theme) {
+    state.darkMode = theme === 'dark';
+    document.body.classList.toggle('dark', state.darkMode);
+    localStorage.setItem('rugrom_theme', theme);
+    themeSelect.value = theme;
+}
+
+// ============================================================
+// 16. POLLING
+// ============================================================
+function startPolling() {
+    if (state.pollingInterval) clearInterval(state.pollingInterval);
+    
+    state.pollingInterval = setInterval(async () => {
+        if (state.currentChat) {
+            const { data, error } = await supabaseClient
+                .from('messages')
+                .select('*')
+                .eq('chat_id', state.currentChat.id)
+                .eq('chat_type', state.currentChat.type)
+                .gt('created_at', state.messages.length ? state.messages[state.messages.length - 1].created_at : '2000-01-01')
+                .order('created_at', { ascending: true });
+
+            if (data && data.length) {
+                const senderIds = [...new Set(data.map(m => m.sender_id))];
+                const badgesMap = await loadUsersBadges(senderIds);
+                Object.assign(state.usersBadges, badgesMap);
+                
+                state.messages = state.messages.concat(data);
+                renderMessages(state.messages);
+                
+                await supabaseClient
+                    .from('messages')
+                    .update({ is_read: true })
+                    .in('id', data.filter(m => m.sender_id !== state.user.id).map(m => m.id));
+            }
+        }
+        
+        const oldChats = [...state.chats];
+        await loadChats();
+        if (JSON.stringify(oldChats.map(c => c.unread)) !== JSON.stringify(state.chats.map(c => c.unread))) {
+            renderChats();
+        }
+    }, 2500);
+}
+
+// ============================================================
+// 17. ОПРОС
+// ============================================================
+function showPoll() {
+    pollOverlay.classList.add('show');
+    pollResults.style.display = 'none';
+    pollQuestions.querySelectorAll('input').forEach(inp => inp.checked = false);
+}
+
+function closePoll() {
+    pollOverlay.classList.remove('show');
+}
+
+async function submitPoll() {
+    const q1 = document.querySelector('input[name="poll_q1"]:checked');
+    const q2 = document.querySelector('input[name="poll_q2"]:checked');
+    const q3 = document.querySelector('input[name="poll_q3"]:checked');
+
+    if (!q1 || !q2 || !q3) {
+        alert('Ответьте на все вопросы!');
+        return;
+    }
+
+    try {
+        const answers = {
+            user_id: state.user.id,
+            q1: q1.value,
+            q2: q2.value,
+            q3: q3.value,
+            created_at: new Date().toISOString()
+        };
+
+        const { error } = await supabaseClient
+            .from('poll_answers')
+            .insert([answers]);
+
+        if (error) throw error;
+
+        const { data: results } = await supabaseClient
+            .from('poll_answers')
+            .select('q1, q2, q3');
+
+        if (results) {
+            const counts = (key) => {
+                const map = {};
+                results.forEach(r => {
+                    map[r[key]] = (map[r[key]] || 0) + 1;
+                });
+                return map;
+            };
+
+            const q1c = counts('q1');
+            const q2c = counts('q2');
+            const q3c = counts('q3');
+            const total = results.length;
+
+            pollResultContent.innerHTML = `
+                <p><strong>Вопрос 1:</strong></p>
+                ${renderBar(q1c, total)}
+                <p><strong>Вопрос 2:</strong></p>
+                ${renderBar(q2c, total)}
+                <p><strong>Вопрос 3:</strong></p>
+                ${renderBar(q3c, total)}
+                <p style="font-size:12px; color:#6c7a8a; margin-top:8px;">Всего ответов: ${total}</p>
+            `;
+            pollResults.style.display = 'block';
+        }
+
+        alert('✅ Спасибо за участие в опросе!');
+    } catch (err) {
+        alert('Ошибка: ' + err.message);
+    }
+}
+
+function renderBar(data, total) {
+    let html = '';
+    const labels = {
+        'web': '🌐 Веб',
+        'mobile': '📱 Мобильное',
+        'both': '💻 И то, и другое',
+        'simple': '🧩 Простой',
+        'feature': '⚡ Много функций',
+        'custom': '🎨 Кастомизация',
+        'speed': '🚀 Скорость',
+        'design': '🎨 Дизайн',
+        'secure': '🔒 Безопасность'
+    };
+    for (const [key, count] of Object.entries(data)) {
+        const pct = (count / total * 100).toFixed(1);
+        html += `
+            <div>${labels[key] || key} (${count})</div>
+            <div class="poll-bar"><div class="fill" style="width:${pct}%;"></div></div>
+        `;
+    }
+    return html;
+}
+
+// ============================================================
+// 18. УДАЛЕНИЕ АККАУНТА
+// ============================================================
+async function deleteAccount() {
+    if (!confirm('Вы уверены? Это удалит все ваши данные!')) return;
+    if (!confirm('Ещё раз: ВСЕ сообщения и чаты будут удалены!')) return;
+
+    try {
+        await supabaseClient
+            .from('messages')
+            .delete()
+            .eq('sender_id', state.user.id);
+
+        await supabaseClient
+            .from('group_members')
+            .delete()
+            .eq('user_id', state.user.id);
+
+        await supabaseClient
+            .from('personal_chats')
+            .delete()
+            .or(`user1_id.eq.${state.user.id},user2_id.eq.${state.user.id}`);
+
+        await supabaseClient
+            .from('verification_badges')
+            .delete()
+            .eq('user_id', state.user.id);
+
+        await supabaseClient
+            .from('users')
+            .delete()
+            .eq('id', state.user.id);
+
+        const { data: files } = await supabaseClient.storage
+            .from('rugrom_files')
+            .list(state.user.id);
+
+        if (files && files.length) {
+            await supabaseClient.storage
+                .from('rugrom_files')
+                .remove(files.map(f => `${state.user.id}/${f.name}`));
+        }
+
+        alert('Аккаунт удалён');
+        logout();
+    } catch (err) {
+        alert('Ошибка: ' + err.message);
+    }
+}
+
+// ============================================================
+// 19. НАВИГАЦИЯ (свайпы)
+// ============================================================
+let touchStartX = 0;
+let touchEndX = 0;
+
+document.addEventListener('touchstart', (e) => {
+    touchStartX = e.changedTouches[0].screenX;
+});
+
+document.addEventListener('touchend', (e) => {
+    touchEndX = e.changedTouches[0].screenX;
+    handleSwipe();
+});
+
+function handleSwipe() {
+    const diff = touchStartX - touchEndX;
+    const threshold = 50;
+
+    if (Math.abs(diff) < threshold) return;
+
+    const activeScreen = document.querySelector('.screen.active');
+    if (!activeScreen) return;
+
+    if (diff > threshold) {
+        if (activeScreen === chatsScreen) {
+            openSettings();
+        } else if (activeScreen === chatScreen) {
+            goBackToChats();
+        }
+    } else if (diff < -threshold) {
+        if (activeScreen === settingsScreen) {
+            goBackFromSettings();
+        } else if (activeScreen === chatScreen) {
+            goBackToChats();
+        }
+    }
+}
+
+// ============================================================
+// 20. ОБРАБОТЧИКИ СОБЫТИЙ
+// ============================================================
+loginBtn.addEventListener('click', login);
+loginUsername.addEventListener('keydown', e => e.key === 'Enter' && login());
+loginPassword.addEventListener('keydown', e => e.key === 'Enter' && login());
+
+registerBtn.addEventListener('click', register);
+regUsername.addEventListener('keydown', e => e.key === 'Enter' && register());
+regPassword.addEventListener('keydown', e => e.key === 'Enter' && register());
+
+logoutBtn.addEventListener('click', logout);
+
+function openSettings() {
+    updateSettingsInfo();
+    showScreen(settingsScreen);
+}
+settingsBtn.addEventListener('click', openSettings);
+
+function goBackFromSettings() {
+    showScreen(chatsScreen);
+}
+backFromSettingsBtn.addEventListener('click', goBackFromSettings);
+
+updateDisplayNameBtn.addEventListener('click', updateDisplayName);
+
+themeSelect.addEventListener('change', (e) => {
+    toggleTheme(e.target.value);
+});
+
+searchUserBtn.addEventListener('click', searchUser);
+searchUserInput.addEventListener('keydown', e => e.key === 'Enter' && searchUser());
+createGroupBtn.addEventListener('click', createGroup);
+
+backToChatsBtn.addEventListener('click', goBackToChats);
+
+function goBackToChats() {
+    state.currentChat = null;
+    if (state.pollingInterval) clearInterval(state.pollingInterval);
+    showScreen(chatsScreen);
+    loadChats();
+}
+
+sendTextBtn.addEventListener('click', () => {
+    const text = messageInput.value.trim();
+    if (text) sendMessage(text, 'text');
+});
+
+messageInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        const text = messageInput.value.trim();
+        if (text) sendMessage(text, 'text');
+    }
+});
+
+audioRecordBtn.addEventListener('click', () => {
+    if (state.isRecording) {
+        stopRecording();
+    } else {
+        startRecording();
+    }
+});
+
+fileUploadBtn.addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', (e) => {
+    if (e.target.files.length) {
+        handleFileUpload(e.target.files);
+        e.target.value = '';
+    }
+});
+
+searchMsgBtn.addEventListener('click', () => {
+    const container = searchMsgContainer;
+    container.style.display = container.style.display === 'none' ? 'block' : 'none';
+    if (container.style.display === 'block') {
+        searchMsgInput.focus();
+    } else {
+        searchMsgInput.value = '';
+        loadMessages(state.currentChat.id, state.currentChat.type);
+    }
+});
+
+searchMsgInput.addEventListener('keydown', async (e) => {
+    if (e.key === 'Enter') {
+        const term = searchMsgInput.value.trim();
+        if (term) {
+            await loadMessages(state.currentChat.id, state.currentChat.type, term);
+        } else {
+            await loadMessages(state.currentChat.id, state.currentChat.type);
+        }
+    }
+});
+
+chatInfoBtn.addEventListener('click', () => {
+    if (state.currentChat) {
+        alert(`
+📋 Информация о чате
+Название: ${state.currentChat.name}
+Тип: ${state.currentChat.type === 'personal' ? 'Личный' : 'Группа'}
+ID: ${state.currentChat.id}
+Сообщений: ${state.messages.length}
+        `);
+    }
+});
+
+showPollBtn.addEventListener('click', showPoll);
+closePollBtn.addEventListener('click', closePoll);
+submitPollBtn.addEventListener('click', submitPoll);
+
+deleteAccountBtn.addEventListener('click', deleteAccount);
+
+pollOverlay.addEventListener('click', (e) => {
+    if (e.target === pollOverlay) closePoll();
+});
+
+// ============================================================
+// 21. ИНИЦИАЛИЗАЦИЯ
+// ============================================================
+async function init() {
+    console.log('🚀 Запуск Rugrom...');
+    
+    const savedTheme = localStorage.getItem('rugrom_theme') || 'light';
+    toggleTheme(savedTheme);
+    
+    const savedUser = localStorage.getItem('rugrom_user');
+    if (savedUser) {
+        try {
+            state.user = JSON.parse(savedUser);
+            console.log('👤 Проверка сессии для:', state.user.username);
+            
+            const { data, error } = await supabaseClient
+                .from('users')
+                .select('id, username, display_name')
+                .eq('id', state.user.id)
+                .single();
+
+            if (!error && data) {
+                console.log('✅ Сессия восстановлена');
+                state.user.display_name = data.display_name;
+                state.userBadges = await loadUserBadges(state.user.id);
+                showScreen(chatsScreen);
+                loadChats();
+                updateSettingsInfo();
+                return;
+            } else {
+                console.log('⚠️ Сессия недействительна');
+                localStorage.removeItem('rugrom_user');
+            }
+        } catch (err) {
+            console.error('❌ Ошибка восстановления сессии:', err);
+            localStorage.removeItem('rugrom_user');
+        }
+    }
+
+    loginForm.classList.remove('hidden');
+    registerForm.classList.add('hidden');
+    showScreen(loginScreen);
+    console.log('✅ Rugrom готов');
+}
+
+init();
+
+console.log('💬 Rugrom загружен!');
+console.log('📱 Свайпайте влево/вправо для навигации');
+console.log('🔒 Шифрование: AES-GCM');
+console.log('🏅 Значки верификации: 🔨 Создатель, ✓ Официальный, ⚡ Админ, ⭐ VIP');
+</script>
+</body>
+</html>
