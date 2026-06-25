@@ -1056,7 +1056,7 @@ function showRegisterError(msg) {
 }
 
 // ============================================================
-// 7. АУТЕНТИФИКАЦИЯ
+// 7. АУТЕНТИФИКАЦИЯ (ИСПРАВЛЕННАЯ)
 // ============================================================
 async function register() {
     const username = regUsername.value.trim();
@@ -1079,6 +1079,9 @@ async function register() {
     try {
         console.log('📝 Регистрация пользователя:', username);
         
+        const hashedPassword = btoa(password + 'salt');
+        console.log('🔐 Хеш пароля:', hashedPassword);
+        
         const { data: existing } = await supabaseClient
             .from('users')
             .select('id')
@@ -1096,7 +1099,7 @@ async function register() {
                 { 
                     username, 
                     display_name: displayName,
-                    password: btoa(password + 'salt'),
+                    password: hashedPassword,
                     created_at: new Date().toISOString()
                 }
             ])
@@ -1139,16 +1142,35 @@ async function login() {
     try {
         console.log('🔑 Вход пользователя:', username);
         
+        const hashedPassword = btoa(password + 'salt');
+        console.log('🔐 Хеш пароля:', hashedPassword);
+        
+        // Проверяем существование пользователя
+        const { data: userExists, error: existsErr } = await supabaseClient
+            .from('users')
+            .select('username, display_name')
+            .eq('username', username)
+            .single();
+            
+        if (existsErr || !userExists) {
+            console.error('❌ Пользователь не найден:', existsErr);
+            showLoginError('Пользователь не найден');
+            return;
+        }
+        
+        console.log('👤 Найден пользователь:', userExists.username);
+        
+        // Ищем с паролем
         const { data, error } = await supabaseClient
             .from('users')
             .select('*')
             .eq('username', username)
-            .eq('password', btoa(password + 'salt'))
+            .eq('password', hashedPassword)
             .single();
 
         if (error || !data) {
-            console.error('❌ Ошибка входа:', error);
-            showLoginError('Неверный @username или пароль');
+            console.error('❌ Неверный пароль:', error);
+            showLoginError('Неверный пароль');
             return;
         }
 
