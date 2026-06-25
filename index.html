@@ -892,23 +892,6 @@ async function decryptText(encoded) {
     }
 }
 
-function decryptTextSync(encoded) {
-    try {
-        if (!encoded || typeof encoded !== 'string') return encoded;
-        let decoded;
-        try {
-            decoded = atob(encoded);
-        } catch {
-            return encoded;
-        }
-        const combined = Uint8Array.from(decoded, c => c.charCodeAt(0));
-        if (combined.length < 13) return encoded;
-        return encoded;
-    } catch {
-        return encoded;
-    }
-}
-
 // ============================================================
 // 4. БЭДЖИ
 // ============================================================
@@ -1411,7 +1394,7 @@ function renderChats() {
 }
 
 // ============================================================
-// 10. ОТКРЫТИЕ ЧАТА
+// 10. ЗАГРУЗКА СООБЩЕНИЙ
 // ============================================================
 async function openChat(chat) {
     state.currentChat = chat;
@@ -1449,7 +1432,6 @@ async function loadMessages(chatId, chatType, searchTerm = '') {
         
         state.messages = data || [];
         
-        // Загружаем данные отправителей для групповых чатов
         if (chatType === 'group') {
             const senderIds = [...new Set(state.messages.map(m => m.sender_id))];
             if (senderIds.length) {
@@ -1504,34 +1486,14 @@ function renderMessages(messages) {
         let canEdit = false;
         
         if (msg.content_type === 'text') {
-            // Для отображения используем синхронную версию
-            let decrypted = msg.content;
-            try {
-                // Пытаемся расшифровать
-                const decoded = atob(msg.content);
-                const combined = Uint8Array.from(decoded, c => c.charCodeAt(0));
-                if (combined.length >= 13) {
-                    // Если это зашифрованное сообщение, расшифровываем асинхронно
-                    // Но для отображения используем асинхронный подход
-                    decryptText(msg.content).then(text => {
-                        const msgElement = document.getElementById(`msg-${msg.id}`);
-                        if (msgElement) {
-                            const textDiv = msgElement.querySelector('.msg-text');
-                            if (textDiv) textDiv.textContent = text;
-                        }
-                    });
-                    decrypted = '🔒 Загрузка...';
-                }
-            } catch {
-                decrypted = msg.content;
-            }
-            content = `<div class="msg-text">${escapeHtml(decrypted)}</div>`;
+            content = `<div class="msg-text">🔒 Расшифровка...</div>`;
             canEdit = true;
         } else if (msg.content_type === 'image') {
             content = `
                 <div style="position:relative;">
                     <img src="${msg.content}" alt="image" loading="lazy" 
-                         onclick="window.open('${msg.content}', '_blank')" />
+                         onclick="window.open('${msg.content}', '_blank')" 
+                         style="max-width:100%; max-height:300px; border-radius:12px; cursor:pointer;" />
                 </div>
             `;
             canEdit = false;
@@ -1573,7 +1535,6 @@ function renderMessages(messages) {
             }
         }
 
-        // Показываем кнопки
         let actions = '';
         if (isMine && canEdit) {
             actions = `
@@ -1613,7 +1574,10 @@ function renderMessages(messages) {
     messagesContainer.innerHTML = html;
     scrollToBottom();
     
-    // Асинхронно расшифровываем текстовые сообщения
+    decryptMessagesAsync(messages);
+}
+
+async function decryptMessagesAsync(messages) {
     for (let msg of messages) {
         if (msg.content_type === 'text') {
             try {
@@ -1621,10 +1585,19 @@ function renderMessages(messages) {
                 const msgElement = document.getElementById(`msg-${msg.id}`);
                 if (msgElement) {
                     const textDiv = msgElement.querySelector('.msg-text');
-                    if (textDiv) textDiv.textContent = decrypted;
+                    if (textDiv) {
+                        textDiv.textContent = decrypted;
+                    }
                 }
             } catch (e) {
-                console.error('Decrypt error:', e);
+                console.error('Decrypt error for message', msg.id, e);
+                const msgElement = document.getElementById(`msg-${msg.id}`);
+                if (msgElement) {
+                    const textDiv = msgElement.querySelector('.msg-text');
+                    if (textDiv) {
+                        textDiv.textContent = '❌ Ошибка расшифровки';
+                    }
+                }
             }
         }
     }
@@ -1719,7 +1692,6 @@ async function handleFileUpload(files) {
 
             console.log(`📤 Загрузка ${contentType}:`, file.name, file.size);
 
-            // Для маленьких файлов используем base64
             if (file.size < 1024 * 1024) {
                 const reader = new FileReader();
                 const base64 = await new Promise((resolve) => {
@@ -1730,7 +1702,6 @@ async function handleFileUpload(files) {
                 continue;
             }
 
-            // Для больших файлов - в Supabase Storage
             const fileExt = file.name.split('.').pop() || 'file';
             const fileName = `${state.user.id}/${Date.now()}.${fileExt}`;
             
